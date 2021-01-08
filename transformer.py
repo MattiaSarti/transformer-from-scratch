@@ -2,6 +2,7 @@ from copy import deepcopy
 from math import sqrt
 from typing import Type
 
+from torch import matmul
 from torch import nn
 from torch import Tensor
 from torch.nn import functional as F
@@ -9,8 +10,8 @@ from torch.nn import functional as F
 
 class EncoderDecoder(nn.Module):
     """
-    base architecture for encoder-decoder sequence-to-sequence Transformer 
-    models
+    Base architecture for encoder-decoder sequence-to-sequence Transformer 
+    models.
     """
     def __init__(
         self, encoder, decoder, src_embedder, tgt_embedder, generator
@@ -23,7 +24,7 @@ class EncoderDecoder(nn.Module):
 
     def forward(self, src_sequence, tgt_sequence, src_mask, tgt_mask):
         """
-        process both masked source and target sequences
+        Process both masked source and target sequences.
         """
         return self.decode(
             self.encode(src_sequence, src_mask),
@@ -56,7 +57,7 @@ class EncoderDecoder(nn.Module):
 
 class LogSoftmaxLayer(nn.Module):
     """
-    linear layer followed by log-softmax activation function
+    Linear layer followed by log-softmax activation function.
     """
     def __init__(self, token_representation_dimension: int, vocabulary_dimension: int):
         super(LogSoftmaxLayer, self).__init__()
@@ -72,7 +73,7 @@ class LogSoftmaxLayer(nn.Module):
 
 def get_clones(module_to_be_cloned, n_clones):
     """
-    produce 'n' "architecturally" identical layers, without shared parameters
+    Produce 'n' "architecturally" identical layers, without shared parameters.
     """
     return nn.ModuleList(
         [deepcopy(module_to_be_cloned) for _ in range(n_clones)]
@@ -84,7 +85,8 @@ def get_clones(module_to_be_cloned, n_clones):
 
 class Encoder(nn.Module):
     """
-    core encoder block
+    Whole encoder, composed of repeated encoder blocks who do not share 
+    parameters.
     """
     def __init__(self, base_layer, n_clones):
         super(Encoder, self).__init__()
@@ -94,16 +96,11 @@ class Encoder(nn.Module):
         )
         self.normalization_layer = LayerNorm(layer.size)
 
-        def forward(self, x, mask):
+        def forward(self, x: Type[Tensor], mask: Type[Tensor]) \
+            -> Type[Tensor]:
             for layer in self.layers:
                 x = layer(x, mask)
-            return self.normalization_layer(x)
-        
-    def forward(self, x, mask):
-        "Pass the input (and mask) through each layer in turn."
-        for layer in self.layers:
-            x = layer(x, mask)
-        return self.norm(x) # TODO: understand why it is not to be masked (correctly defined, though, not requiring mask during forward method call)
+            return self.normalization_layer(x) # TODO: understand why it is not to be masked (correctly defined, though, not requiring mask during forward method call)
 
 
 ##############################################################################
@@ -111,7 +108,7 @@ class Encoder(nn.Module):
 
 class LayerNorm(nn.Module):
     """
-    layer normalization layer
+    Layer normalization layer.
     """
     def __init__(self, feature_dimension, epsilon):
         super(LayerNorm, self).__init__()
@@ -119,10 +116,78 @@ class LayerNorm(nn.Module):
         self.beta = nn.Parameter(data=torch.zeros(feature_dimension))
         self.epsilon = epsilon
 
-    def forward(self, x):
+    def forward(self, x: Type[Tensor]) -> Type[Tensor]:
        mean = x.mean(dim=-1, keepdim=True)
        std = x.std(dim=-1, keepdim=True)
        return ((x - mean) / (std + self.epsilon)) * self.alpha + self.beta
+
+
+##############################################################################
+
+
+class EncoderLayer(nn-Module):
+    """
+    Core encoder block.
+    """
+    pass
+
+
+##############################################################################
+
+
+def self_attention(queries: Type[Tensor], keys: Type[Tensor], 
+    values: Type[Tensor], mask=None: Type[Tensor], dropout_layer=None:  \
+    Type[nn.Module]) -> Type[Tensor]:
+    """
+    Return result of scaled dot-product attention operation:
+    - equation: Attention(Q, K, V) = softmax(QK_T / √dk)V , with dropout applied
+        only right after softmax application, during training.
+    """
+    # computing scores resembling each key's importance for each considered 
+    # query, scaling by √dk, i.e. the square root of the feature dimension of 
+    # the query vector, in order to counteract the variance increase of with 
+    # the query-key dot-product, that would saturate softmax and vanish its 
+    # gradient:
+    scores = matmul(queries, keys.transpose(dim0=-2, dim1=-1)) \
+        / sqrt(queries.size(-1)
+    
+    # if input masked:
+    if mask:
+        # replacing all values of the token positions under the mask - i.e. 
+        # whose values are not to be considered when composing the outputs by 
+        # making a weighted average of values - with minus infinity, so as to 
+        # let them completely lose their significance after softmax 
+        # application (because tending to 0, i.e. the lowest probability 
+        # achievable after normalization):
+        scores = scores.mask_fill(mask=(mask == 0), value=-1e9)
+    
+    # NOTE: I believe that the scaling factor above - i.e. √dk - should be 
+    # corrected as well when there is a mask
+
+    # computing normalized attention weights, i.e. attention probabilities, 
+    # of all tokens (each in a different position) toward all tokens - 
+    # softmax is applied for (along) each query, to see the importance of 
+    # each key (i.e. each token position) to it:
+    normalized_attention_weights = F.softmax(scores, dim=-1) # TODO: explain why dim=-1 instead of -2
+
+    # if dropout:
+    if dropout_layer:
+        # the function output giving normalized attention weights (attention 
+        # probabilities) is substituted by an output of dropped-out attention 
+        # probabilities, i.e. some probabilities are reset to 0 at random:
+        normalized_attention_weights = dropout_layer()
+
+    # computing each token output feature as a weighted average of the values 
+    # of the tokens in all positions, where weights (each representing the 
+    # attention of a token in a given position to a token in another given 
+    # position) are normalized attention scores, i.e. attention probabilities 
+    # - note how feature vectors of tokens in different positions are averaged
+    # "feature-wise", in this weighted average, maintaining the representation
+    # meaning of each feature and not mixing different feature values:
+    return matmul(normalized_attention_weights, values), \
+        # returning also either self-attention normalized_attention_weights or
+        # a dropped-out version of them:
+        normalized_attention_weights
 
 
 ##############################################################################
@@ -137,11 +202,11 @@ class MultiHeadedAttention(nn.Module):
 
 class PositionWiseFeedForward(nn.module):
     """
-    point-wise feed-forward (fully-connected) layer:
-    parameters (weights) are shared among different positions of the same 
+    Point-wise feed-forward (fully-connected) layer:
+    - parameters (weights) are shared among different positions of the same 
         layer, but not among different layers;
-    equation: FFN(x) = max(0, xW1+b1)W2 + b2 , with dropout applied only right
-        after 'max' application during training;
+    - equation: FFN(x) = max(0, xW1 + b1)W2 + b2 , with dropout applied only right
+        after ReLU (i.e. max(..., 0)) application, during training.
     """
     def __init__(self,
                  token_representation_dimension: int,
@@ -158,7 +223,7 @@ class PositionWiseFeedForward(nn.module):
         )
         self.dropout_layer = nn.Dropout(dropout_prob)
 
-        def forward(self, x):
+        def forward(self, x: Type[Tensor]) -> Type[Tensor]:
             return self.linear_layer_2(
                 dropout_layer(F.relu(self.linear_layer_1(x)))
             )
@@ -169,9 +234,9 @@ class PositionWiseFeedForward(nn.module):
 
 class EmbeddingLayer(nn.Module):
     """
-    embedding layer that, besides pure embedding, additionally carries out the
+    Embedding layer that, besides pure embedding, additionally carries out the
     (element-wise) multiplication of the embedded feature vector by the square 
-    root of the embedding dimension size
+    root of the embedding dimension size.
     """
     def __init__(self,
                  vocabulary_dimension: int,
@@ -183,9 +248,9 @@ class EmbeddingLayer(nn.Module):
         )
         self.token_representation_dimension = token_representation_dimension
 
-        def forward(self, x):
+        def forward(self, x: Type[Tensor]) -> Type[Tensor]:
             return self.core_embedding_layer(x) * \
-                sqrt(elf.token_representation_dimension)
+                sqrt(self.token_representation_dimension)
 
 
 ##############################################################################
@@ -193,7 +258,6 @@ class EmbeddingLayer(nn.Module):
 
 class PositionalEncoding(nn.Module):
     pass
-
 
 
 ##############################################################################
@@ -212,7 +276,7 @@ def build_transformer_architecture(
     feedforward_dimension: int=2048,
     n_attention_heads: int=8,
     dropout_prob: float=0.1
-) -> :
+) -> Type[nn.Module]:
     """
     Return a Transformer model object instantiated with the architecture 
     specified by the input hyperparameters, with newly initialized weights.
@@ -287,6 +351,7 @@ def build_transformer_architecture(
 
 # Notes:
 # pw ff the equation is applied to each position separately and identically
+# is mask pf Type[Tensor] or of type something like List[List[bool]]?
 
 
 if __name__ == '__main__':
