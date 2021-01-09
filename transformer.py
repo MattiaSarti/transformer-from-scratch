@@ -2,9 +2,7 @@ from copy import deepcopy
 from math import sqrt
 from typing import Type
 
-from torch import matmul
-from torch import nn
-from torch import Tensor
+from torch import matmul, nn, ones, Tensor, zeros
 from torch.nn import functional as F
 
 
@@ -90,7 +88,7 @@ class Encoder(nn.Module):
     """
     def __init__(self, base_layer, n_clones):
         super(Encoder, self).__init__()
-        self.layers = clones(
+        self.layers = get_clones(
             module_to_be_cloned=base_layer,
             n_clones=n_clones
         )
@@ -112,8 +110,8 @@ class LayerNorm(nn.Module):
     """
     def __init__(self, feature_dimension, epsilon):
         super(LayerNorm, self).__init__()
-        self.alpha = nn.Parameter(data=torch.ones(feature_dimension))
-        self.beta = nn.Parameter(data=torch.zeros(feature_dimension))
+        self.alpha = nn.Parameter(data=ones(feature_dimension))
+        self.beta = nn.Parameter(data=zeros(feature_dimension))
         self.epsilon = epsilon
 
     def forward(self, x: Type[Tensor]) -> Type[Tensor]:
@@ -136,8 +134,8 @@ class EncoderLayer(nn-Module):
 
 
 def self_attention(queries: Type[Tensor], keys: Type[Tensor], 
-    values: Type[Tensor], mask=None: Type[Tensor], dropout_layer=None:  \
-    Type[nn.Module]) -> Type[Tensor]:
+    values: Type[Tensor], mask: Type[Tensor]=None, dropout_layer: \
+    Type[nn.Module]=None) -> Type[Tensor]:
     """
     Return result of scaled dot-product attention operation:
     - equation: Attention(Q, K, V) = softmax(QK_T / √dk)V , with dropout applied
@@ -149,7 +147,7 @@ def self_attention(queries: Type[Tensor], keys: Type[Tensor],
     # the query-key dot-product, that would saturate softmax and vanish its 
     # gradient:
     scores = matmul(queries, keys.transpose(dim0=-2, dim1=-1)) \
-        / sqrt(queries.size(-1)
+        / sqrt(queries.size(-1)) # TODO: understand tensor dimensions
     
     # if input masked:
     if mask:
@@ -185,22 +183,77 @@ def self_attention(queries: Type[Tensor], keys: Type[Tensor],
     # "feature-wise", in this weighted average, maintaining the representation
     # meaning of each feature and not mixing different feature values:
     return matmul(normalized_attention_weights, values), \
-        # returning also either self-attention normalized_attention_weights or
-        # a dropped-out version of them:
         normalized_attention_weights
+        # returning also either self-attention normalized_attention_weights or
+        # a dropped-out version of them
 
 
 ##############################################################################
 
 
 class MultiHeadedAttention(nn.Module):
-    pass
+    """
+    """
+    def __init__(self, n_attention_heads: int, 
+        token_representation_dimension: int, dropout_prob: float):
+        assert ((token_representation_dimension % n_attention_heads) == 0)
+        super(MultiHeadedAttention, self).__init__()
+        # keys and values feature dimensionality:
+        self.key_or_value_dimension = \
+            token_representation_dimension // n_attention_heads
+        self.n_attention_heads = n_attention_heads
+        # layers for linearly projecting tokens into keys, queries and values,
+        # respectively - the first three ones - and for merging information
+        #  from different heads - the fourth one:
+        self.projection_layers = get_clones(
+            module_to_be_cloned=nn.Linear(
+                in_features=token_representation_dimension,
+                out_features=token_representation_dimension # TODO: understand why it is not 'key_or_value_dimension'
+            ),
+            n_clones=4
+        )
+        self.normalized_attention_weights = None
+        self.dropout_layer = nn.Dropout(p=dropout_prob)
+        
+
+        def forward(self, query_tokens: Type[Tensor], key_or_value_tokens: 
+            Type[Tensor], mask: Type[Tensor]=None) -> Type[Tensor]:
+
+            # if input masked:
+            if mask:
+                # for applying the same mask to all heads:
+                mask = mask.unsqueeze(dim=1) # TODO: understand why on axis -1
+
+            # computing queries, keys and values as linear projections of
+            # tokens' own features:
+            queries, keys, values = [
+                layer(x) for layer, x in zip(self.projection_layers, \
+                    (query_tokens, key_or_value_tokens, key_or_value_tokens))
+            ]
+
+            # computing self-attention - separately for each head:
+            x, self.normalized_attention_weights = self_attention(
+                queries=queries,
+                keys=keys,
+                values=values,
+                mask=mask,
+                dropout_layer=self.dropout_layer
+            )
+
+            # concatenating results from all different heads along feature 
+            # dimension, after adjusting tensor shape properly:
+            x = x.transpose(dim0=1, dim1=2).contiguous() \
+                .view(*[query_tokens.dim(0), -1, self.n_attention_heads * self.key_or_value_dimension]) # TODO: understand dimensions
+            
+            # final fully-connected linear combination of information from 
+            # different heads:
+            return self.projection_layers[-1](x)
 
 
 ##############################################################################
 
 
-class PositionWiseFeedForward(nn.module):
+class PositionWiseFeedForward(nn.Module):
     """
     Point-wise feed-forward (fully-connected) layer:
     - parameters (weights) are shared among different positions of the same 
@@ -241,7 +294,7 @@ class EmbeddingLayer(nn.Module):
     def __init__(self,
                  vocabulary_dimension: int,
                  token_representation_dimension: int):
-        super(EmbeddingLayer, self).__init__():
+        super(EmbeddingLayer, self).__init__()
         self.core_embedding_layer = nn.Embedding(
             num_embeddings=vocabulary_dimension,
             embedding_dim=token_representation_dimension
@@ -356,7 +409,7 @@ def build_transformer_architecture(
 
 if __name__ == '__main__':
 
-    my_model make_model(
+    my_model = build_transformer_architecture(
         src_vocabulary=10000,
         tgt_vocabulary=10000
     )
