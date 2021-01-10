@@ -18,7 +18,7 @@ class EncoderDecoder(nn.Module):
         self.decoder = decoder
         self.src_embedder = src_embedder
         self.tgt_embedder = tgt_embedder
-        self.generator = generator # (not used for building the architecture)
+        self.generator = generator # (not used for building the architecture!!) - call it "log_softmax_layer"
 
     def forward(self, src_sequence, tgt_sequence, src_mask, tgt_mask):
         """
@@ -83,22 +83,24 @@ def get_clones(module_to_be_cloned, n_clones):
 
 class Encoder(nn.Module):
     """
-    Whole encoder, composed of repeated encoder blocks who do not share 
+    Whole encoder, composed of repeated encoder blocks which do not share 
     parameters.
     """
-    def __init__(self, base_layer, n_clones):
+    def __init__(self, base_block, n_clones):
         super(Encoder, self).__init__()
         self.layers = get_clones(
-            module_to_be_cloned=base_layer,
+            module_to_be_cloned=base_block,
             n_clones=n_clones
         )
-        self.normalization_layer = LayerNorm(layer.size)
+        self.normalization_layer = LayerNorm(base_block.size())
 
         def forward(self, x: Type[Tensor], mask: Type[Tensor]) \
             -> Type[Tensor]:
+            # forwarding inputs throught all encoder blocks:
             for layer in self.layers:
                 x = layer(x, mask)
-            return self.normalization_layer(x) # TODO: understand why it is not to be masked (correctly defined, though, not requiring mask during forward method call)
+            # TODO: understand why this last, additional normalization and why it is not to be masked
+            return self.normalization_layer(x)
 
 
 ##############################################################################
@@ -106,9 +108,9 @@ class Encoder(nn.Module):
 
 class LayerNorm(nn.Module):
     """
-    Layer normalization layer.
+    Layer-normalization layer.
     """
-    def __init__(self, feature_dimension, epsilon):
+    def __init__(self, feature_dimension: int, epsilon: float=1e-6):
         super(LayerNorm, self).__init__()
         self.alpha = nn.Parameter(data=ones(feature_dimension))
         self.beta = nn.Parameter(data=zeros(feature_dimension))
@@ -123,17 +125,156 @@ class LayerNorm(nn.Module):
 ##############################################################################
 
 
-class EncoderLayer(nn-Module):
+class ResidualConnectionAndLayerNorm(nn.Module):
     """
-    Core encoder block.
+    Residual connection around a base layer, after dropout is applied to the 
+    base layer's output, eventually followed by layer-normalization.
     """
-    pass
+    def __init__(self, feature_dimension: int, dropout_prob: float):
+        super(ResidualConnectionAndLayerNorm, self).__init__()
+        self.layer_normalization_layer = LayerNorm(feature_dimension=\
+            feature_dimension)
+        self.dropout_layer = nn.Dropout(p=dropout_prob)
+        
+    def forward(x, base_layer: Type[nn.Module]):
+        return layer_normalization_layer(x + dropout_layer(base_layer(x)))
+    # TODO: understand why norm is applied first instead of last in their implementation: "Note for code simplicity the norm is first as opposed to last."
 
 
 ##############################################################################
 
 
-def self_attention(queries: Type[Tensor], keys: Type[Tensor], 
+class EncoderLayer(nn.Module):
+    """
+    Core encoder block, composed of, from inputs to outputs:
+    - multi-headed self-attention layer;
+    - residual connection;
+    - layer-normalization layer;
+    - fully-connected (feed-forward) layer;
+    - residual connection;
+    - layer-normalization layer.
+    """
+    def __init__(self, size: Type[???], self_multi_headed_attention_layer: 
+        Type[nn.Module], fully_connected_layer: Type[nn.Module], 
+        dropout_layer: Type[nn.Module]):
+        super(EncoderLayer, self).__init__()
+        self.size = size # TODO: understand size of what
+        self.self_multi_headed_attention_layer = \
+            self_multi_headed_attention_layer
+        self.fully_connected_layer = fully_connected_layer
+        self.residual_connection_blocks = get_clones(
+            module_to_be_cloned=SubLayerConnection(
+
+            ),
+            n_clones=2
+        )
+
+    def forward(self, x: Type[Tensor], mask: Type[Tensor]):
+        # self-attention, towards encoder token positions themselves, followed
+        # by residual connection and layer normalization:
+        x = self.residual_connection_blocks[0](
+            x,
+            lambda x: self.self_multi_headed_attention_layer(
+                query_tokens=x,
+                key_or_value_tokens=x,
+                mask=tmask
+            )
+        )
+        # fully-connected (feed-forward) layer followed by residual connection
+        # and layer normalization:
+        return residual_connection_blocks[0](x, fully_connected_layer)
+
+
+##############################################################################
+
+
+class Decoder(nn.Module):
+    """
+    Whole decoder, composed of repeated decoder blocks which do not share 
+    parameters.
+    """
+    def __init__(self, base_block, n_clones):
+        super(Decoder, self).__init__()
+        self.layers = get_clones(
+            module_to_be_cloned=base_block,
+            n_clones=n_clones
+        )
+        self.normalization_layer = LayerNorm(base_block.size())
+
+        def forward(self, x: Type[Tensor], src_mask: Type[Tensor], tgt_mask: \
+            Type[Tensor]) -> Type[Tensor]:
+            # forwarding inputs throught all decoder blocks:
+            for layer in self.layers:
+                x = layer(x, mask)
+            # TODO: understand why this last, additional normalization and why it is not to be masked
+            return self.normalization_layer(x)
+
+
+##############################################################################
+
+
+class DecoderLayer(nn.Module):
+    """
+    Core decoder block, composed of, from inputs to outputs:
+    - multi-headed self-attention layer;
+    - residual connection;
+    - layer-normalization layer;
+    - multi-headed source-attention layer;
+    - residual connection;
+    - layer-normalization layer;
+    - fully-connected (feed-forward) layer;
+    - residual connection;
+    - layer-normalization layer.
+    """
+    def __init__(self, size: Type[???], self_multi_headed_attention_layer: 
+        Type[nn.Module], source_multi_headed_attention_layer: Type[nn.Module],
+        fully_connected_layer: Type[nn.Module], dropout_layer: 
+        Type[nn.Module]):
+        super(DecoderLayer, self).__init__()
+        self.size = size # TODO: understand size of what
+        self.self_multi_headed_attention_layer = \
+            self_multi_headed_attention_layer
+        self.source_multi_headed_attention_layer = \
+            source_multi_headed_attention_layer
+        self.fully_connected_layer = 
+        self.residual_connection_blocks = get_clones(
+            module_to_be_cloned=SubLayerConnection(
+
+            ),
+            n_clones=3
+        )
+
+    def forward(self, x: Type[Tensor], src_encoded_tokens: Type[Tensor],
+        src_mask: Type[Tensor], tgt_mask: Type[Tensor]):
+        # self-attention, towards decoder token positions themselves, followed
+        # by residual connection and layer normalization:
+        x = self.residual_connection_blocks[0](
+            x,
+            lambda x: self.self_multi_headed_attention_layer(
+                query_tokens=x,
+                key_or_value_tokens=x,
+                mask=tgt_mask
+            )
+        )
+        # source-attention, towards (final representations of) encoder token 
+        # positions, followed by residual connection and layer normalization:
+        x = self.residual_connection_blocks[1](
+            x,
+            lambda x: self.source_multi_headed_attention_layer(
+                query_tokens=x,
+                key_or_value_tokens=src_encoded_tokens,
+                mask=src_mask
+            )
+        )
+        # fully-connected (feed-forward) layer followed by residual connection
+        # and layer normalization:
+        return residual_connection_blocks[2](x, fully_connected_layer)
+
+
+##############################################################################
+
+
+def scaled_dot_product_attention(queries: Type[Tensor], keys: Type[Tensor], 
     values: Type[Tensor], mask: Type[Tensor]=None, dropout_layer: \
     Type[nn.Module]=None) -> Type[Tensor]:
     """
@@ -184,8 +325,8 @@ def self_attention(queries: Type[Tensor], keys: Type[Tensor],
     # meaning of each feature and not mixing different feature values:
     return matmul(normalized_attention_weights, values), \
         normalized_attention_weights
-        # returning also either self-attention normalized_attention_weights or
-        # a dropped-out version of them
+        # returning also either the normalized attention weights or a 
+        # dropped-out version of them
 
 
 ##############################################################################
@@ -231,19 +372,27 @@ class MultiHeadedAttention(nn.Module):
                     (query_tokens, key_or_value_tokens, key_or_value_tokens))
             ]
 
-            # computing self-attention - separately for each head:
-            x, self.normalized_attention_weights = self_attention(
-                queries=queries,
-                keys=keys,
-                values=values,
-                mask=mask,
-                dropout_layer=self.dropout_layer
-            )
+            # computing scaled dot-product attention - separately for each 
+            # head:
+            x, self.normalized_attention_weights = \
+                scaled_dot_product_attention(
+                    queries=queries,
+                    keys=keys,
+                    values=values,
+                    mask=mask,
+                    dropout_layer=self.dropout_layer
+                )
 
             # concatenating results from all different heads along feature 
             # dimension, after adjusting tensor shape properly:
             x = x.transpose(dim0=1, dim1=2).contiguous() \
-                .view(*[query_tokens.dim(0), -1, self.n_attention_heads * self.key_or_value_dimension]) # TODO: understand dimensions
+                .view(
+                    *[
+                        query_tokens.dim(0),
+                        -1,
+                        self.n_attention_heads * self.key_or_value_dimension
+                    ]
+                ) # TODO: understand dimensions
             
             # final fully-connected linear combination of information from 
             # different heads:
@@ -285,7 +434,7 @@ class PositionWiseFeedForward(nn.Module):
 ##############################################################################
 
 
-class EmbeddingLayer(nn.Module):
+class Embedding(nn.Module):
     """
     Embedding layer that, besides pure embedding, additionally carries out the
     (element-wise) multiplication of the embedded feature vector by the square 
@@ -294,7 +443,7 @@ class EmbeddingLayer(nn.Module):
     def __init__(self,
                  vocabulary_dimension: int,
                  token_representation_dimension: int):
-        super(EmbeddingLayer, self).__init__()
+        super(Embedding, self).__init__()
         self.core_embedding_layer = nn.Embedding(
             num_embeddings=vocabulary_dimension,
             embedding_dim=token_representation_dimension
@@ -369,14 +518,14 @@ def build_transformer_architecture(
             n_encoder_blocks
         ),
         src_embedder=nn.Sequential(
-            EmbeddingLayer(
+            Embedding(
                 token_representation_dimension,
                 src_vocabulary
             ),
             deepcopy(positional_encoding_layer)
         ),
         tgt_embedder=nn.Sequential(
-            EmbeddingLayer(
+            Embedding(
                 token_representation_dimension,
                 tgt_vocabulary
             ),
