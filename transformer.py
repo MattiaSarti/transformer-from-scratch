@@ -2,7 +2,10 @@ from copy import deepcopy
 from math import sqrt
 from typing import Type
 
-from torch import matmul, nn, ones, Tensor, zeros
+from numpy import ones as np_ones
+from numpy import tril
+from torch import from_numpy, matmul, nn, Tensor
+from torch import ones, zeros as torch_ones, torch_zeros
 from torch.nn import functional as F
 
 
@@ -112,8 +115,8 @@ class LayerNorm(nn.Module):
     """
     def __init__(self, feature_dimension: int, epsilon: float=1e-6):
         super(LayerNorm, self).__init__()
-        self.alpha = nn.Parameter(data=ones(feature_dimension))
-        self.beta = nn.Parameter(data=zeros(feature_dimension))
+        self.alpha = nn.Parameter(data=torch_ones(feature_dimension))
+        self.beta = nn.Parameter(data=torch_zeros(feature_dimension))
         self.epsilon = epsilon
 
     def forward(self, x: Type[Tensor]) -> Type[Tensor]:
@@ -269,6 +272,20 @@ class DecoderLayer(nn.Module):
         # fully-connected (feed-forward) layer followed by residual connection
         # and layer normalization:
         return residual_connection_blocks[2](x, fully_connected_layer)
+
+
+##############################################################################
+
+
+def allowed_positions_to_attend(n_positions):
+    """
+    create masks showing source positions allowed to be attended by each target 
+    position
+    """
+    mask_shape = (1, n_positions, n_positions)
+    masks = np.tril(np_ones(mask_shape), k=0).astype('uint8')
+    return from_numpy(masks)
+     # TODO: double-check my mplementation is correct, as I've implemented it in a more optimized way - but the visual output confirms as well ✓✓
 
 
 ##############################################################################
@@ -469,84 +486,104 @@ class PositionalEncoding(nn.Module):
 ##############################################################################
 
 
-def build_transformer_architecture(
-    src_vocabulary: int,
-    tgt_vocabulary: int,
-    n_encoder_blocks: int=6,
-    n_decoder_blocks: int=6,
-    token_representation_dimension: int=512,
-    feedforward_dimension: int=2048,
-    n_attention_heads: int=8,
-    dropout_prob: float=0.1
-) -> Type[nn.Module]:
+class Transformer:
     """
-    Return a Transformer model object instantiated with the architecture 
-    specified by the input hyperparameters, with newly initialized weights.
     """
+    def __init__(self, path: str=''):
+        # if not path given, initializing a new model:
+        if not path:
+            self.model = self.build_transformer_architecture(
+                ...
+            )
+        else:
+            self.model = ...load
 
-    # building the architecture:
 
-    # instantiating base layers:
-    multi_headed_attention_later = MultiHeadedAttention(
-        
-    )
-    feedforward_layer = PositionWiseFeedForward(
-        
-    )
-    positional_encoding_layer = PositionalEncoding(
+    def build_transformer_architecture(
+        self,
+        src_vocabulary: int,
+        tgt_vocabulary: int,
+        n_encoder_blocks: int=6,
+        n_decoder_blocks: int=6,
+        token_representation_dimension: int=512,
+        feedforward_dimension: int=2048,
+        n_attention_heads: int=8,
+        dropout_prob: float=0.1
+    ) -> Type[nn.Module]:
+        """
+        Return a Transformer model object instantiated with the architecture 
+        specified by the input hyperparameters, with newly initialized weights.
+        """
 
-    )
-    # composing base layers to build the whole model architecture:
-    model = EncoderDecoder(
-        encoder=Encoder(
-            EncoderLayer(
-                token_representation_dimension,
-                deepcopy(multi_headed_attention_later),
-                deepcopy(feedforward_layer),
-                dropout_prob
+        # building the architecture:
+
+        # instantiating base layers:
+        multi_headed_attention_later = MultiHeadedAttention(
+            
+        )
+        feedforward_layer = PositionWiseFeedForward(
+            
+        )
+        positional_encoding_layer = PositionalEncoding(
+
+        )
+        # composing base layers to build the whole model architecture:
+        model = EncoderDecoder(
+            encoder=Encoder(
+                EncoderLayer(
+                    token_representation_dimension,
+                    deepcopy(multi_headed_attention_later),
+                    deepcopy(feedforward_layer),
+                    dropout_prob
+                ),
+                n_encoder_blocks
             ),
-            n_encoder_blocks
-        ),
-        decoder=Decoder(
-            DecoderLayer(
-                token_representation_dimension,
-                deepcopy(multi_headed_attention_later),
-                deepcopy(multi_headed_attention_later),
-                deepcopy(feedforward_layer),
-                dropout_prob
+            decoder=Decoder(
+                DecoderLayer(
+                    token_representation_dimension,
+                    deepcopy(multi_headed_attention_later),
+                    deepcopy(multi_headed_attention_later),
+                    deepcopy(feedforward_layer),
+                    dropout_prob
+                ),
+                n_encoder_blocks
             ),
-            n_encoder_blocks
-        ),
-        src_embedder=nn.Sequential(
-            Embedding(
-                token_representation_dimension,
-                src_vocabulary
+            src_embedder=nn.Sequential(
+                Embedding(
+                    token_representation_dimension,
+                    src_vocabulary
+                ),
+                deepcopy(positional_encoding_layer)
             ),
-            deepcopy(positional_encoding_layer)
-        ),
-        tgt_embedder=nn.Sequential(
-            Embedding(
+            tgt_embedder=nn.Sequential(
+                Embedding(
+                    token_representation_dimension,
+                    tgt_vocabulary
+                ),
+                deepcopy(positional_encoding_layer)
+            ),
+            generator=Generator(
                 token_representation_dimension,
                 tgt_vocabulary
-            ),
-            deepcopy(positional_encoding_layer)
-        ),
-        generator=Generator(
-            token_representation_dimension,
-            tgt_vocabulary
+            )
         )
-    )
 
-    # initializing the hyperparameters:
+        # initializing the hyperparameters:
 
-    # for each layer's parameter set:
-    for parameter in model.parameters:
-        # TODO: explain why:
-        if parameter.dim() > 1:
-            # parameters initialized following Xavier initialization:
-            nn.init.xavier_uniform(parameter)
+        # for each layer's parameter set:
+        for parameter in model.parameters:
+            # TODO: explain why:
+            if parameter.dim() > 1:
+                # parameters initialized following Xavier initialization:
+                nn.init.xavier_uniform(parameter)
 
-    return model
+        return model
+
+    def train(self):
+        pass
+
+    def predict(self):
+        pass
     
 
 ##############################################################################
