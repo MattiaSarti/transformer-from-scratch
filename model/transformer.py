@@ -4,6 +4,8 @@ from .embedding import *
 from .encoder import *
 from .decoder import *
 
+from training.training import *
+
 
 class EncoderDecoder(nn.Module):
     """
@@ -53,18 +55,7 @@ class EncoderDecoder(nn.Module):
 class Transformer:
     """
     """
-    def __init__(self, path: str=''):
-        # if not path given, initializing a new model:
-        if not path:
-            pass
-            # self.model = self.build_model_architecture(
-            #     ...
-            # )
-        else:
-            pass
-            # self.model = ...load
-
-    def build_model_architecture(
+    def __init__(
         self,
         src_vocabulary_dimension: int,
         tgt_vocabulary_dimension: int,
@@ -74,11 +65,60 @@ class Transformer:
         feedforward_dimension: int=2048,
         n_attention_heads: int=8,
         max_sequence_length: int=5000,
-        dropout_prob: float=0.1
+        dropout_prob: float=0.1,
+        path: str=''
+    ):
+        # if not path given, initializing a new model:
+        if not path:
+            self.hyperparameters = {
+                'src_vocabulary_dimension': src_vocabulary_dimension,
+                'tgt_vocabulary_dimension': tgt_vocabulary_dimension,
+                'n_encoder_blocks': n_encoder_blocks,
+                'n_decoder_blocks': n_decoder_blocks,
+                'token_representation_dimension': token_representation_dimension,
+                'feedforward_dimension': feedforward_dimension,
+                'n_attention_heads': n_attention_heads,
+                'max_sequence_length': max_sequence_length,
+                'dropout_prob': dropout_prob
+            }
+            self.model = self.build_model_architecture(
+                **self.hyperparameters
+            )
+        # otherwise, loading existing model:
+        else:
+            # TODO: check other kwargs are not given, else raise exception
+            pass
+            # self.model = ...load
+            # self.src_vocabulary_dimension=\
+            #     hyperparameters['src_vocabulary_dimension'],
+            # self.tgt_vocabulary_dimension=\
+            #     hyperparameters['tgt_vocabulary_dimension'],
+            # self.n_encoder_blocks=hyperparameters['n_encoder_blocks'],
+            # self.n_decoder_blocks=hyperparameters['n_decoder_blocks'],
+            # self.token_representation_dimension=\
+            #     hyperparameters['token_representation_dimension'],
+            # self.feedforward_dimension=\
+            #     hyperparameters['feedforward_dimension'],
+            # self.n_attention_heads=hyperparameters['n_attention_heads'],
+            # self.max_sequence_length=hyperparameters['max_sequence_length'],
+            # self.dropout_prob=hyperparameters['dropout_prob']
+
+    def build_model_architecture(
+        self,
+        src_vocabulary_dimension: int,
+        tgt_vocabulary_dimension: int,
+        n_encoder_blocks: int,
+        n_decoder_blocks: int,
+        token_representation_dimension: int,
+        feedforward_dimension: int,
+        n_attention_heads: int,
+        max_sequence_length: int,
+        dropout_prob: float
     ) -> nn.Module:
         """
         Return a Transformer model object instantiated with the architecture 
-        specified by the input hyperparameters, with newly initialized weights.
+        specified by the input hyperparameters, with newly initialized 
+        weights.
         """
 
         # building the architecture:
@@ -145,7 +185,7 @@ class Transformer:
             )
         )
 
-        # initializing the hyperparameters:
+        # initializing the parameters:
 
         # for each layer's parameter set:
         for parameter in model.parameters():
@@ -156,8 +196,42 @@ class Transformer:
 
         return model
 
-    def train(self):
-        pass
+    def train(self, n_epochs: int, padding_token: int,
+        label_smoothing_factor: int, learning_rate_n_warmup_steps: int,
+        learning_rate_amplification_factor: float):
+        """
+        Execute the whole training of the model.
+        """
+
+        criterion = LabelSmoothing(
+            softmax_dimension=\
+                self.hyperparameters['tgt_vocabulary_dimension'],
+            padding_token=padding_token,
+            smoothing_factor=label_smoothing_factor
+        )
+        optimizer = OptimizerHandler(
+            optimizer=Adam(
+
+            ),
+            n_warmup_steps=learning_rate_n_warmup_steps, 
+            amplification_factor=learning_rate_amplification_factor,
+            model_hidden_dimension=\
+                self.hyperparameters['token_representation_dimension']
+        )
+
+        # for each training epoch:
+        for epoch in range(n_epochs):
+            # switching to training mode:
+            self.model.train()
+            # :
+            execute_training_epoch(
+
+            )
+            # back to inference mode:
+            self.model.eval()
+            
 
     def predict(self):
+        # switching to inference mode:
+        self.model.eval()
         pass
