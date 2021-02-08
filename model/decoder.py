@@ -1,5 +1,6 @@
-from .attention import *
-from .base import *
+from torch import nn, Tensor
+
+from .base import get_clones, LayerNorm, ResidualConnectionAndLayerNorm
 
 
 class DecoderBlock(nn.Module):
@@ -15,12 +16,13 @@ class DecoderBlock(nn.Module):
     - residual connection;
     - layer-normalization layer.
     """
-    def __init__(self, feature_dimension: int, 
-        self_multi_headed_attention_layer: nn.Module,
-        source_multi_headed_attention_layer: nn.Module,
-        fully_connected_layer: nn.Module, dropout_prob: float):
+    def __init__(self, feature_dimension: int,
+                 self_multi_headed_attention_layer: nn.Module,
+                 source_multi_headed_attention_layer: nn.Module,
+                 fully_connected_layer: nn.Module, dropout_prob: float)\
+            -> None:
         super(DecoderBlock, self).__init__()
-        self.feature_dimension = feature_dimension 
+        self.feature_dimension = feature_dimension
         self.self_multi_headed_attention_layer = \
             self_multi_headed_attention_layer
         self.source_multi_headed_attention_layer = \
@@ -35,7 +37,7 @@ class DecoderBlock(nn.Module):
         )
 
     def forward(self, x: Tensor, src_encoded_tokens: Tensor,
-        src_mask: Tensor, tgt_mask: Tensor) -> Tensor:
+                src_mask: Tensor, tgt_mask: Tensor) -> Tensor:
         # self-attention, towards decoder token positions themselves, followed
         # by residual connection and layer normalization:
         x = self.residual_connection_blocks[0](
@@ -46,7 +48,7 @@ class DecoderBlock(nn.Module):
                 mask=tgt_mask
             )
         )
-        # source-attention, towards (final representations of) encoder token 
+        # source-attention, towards (final representations of) encoder token
         # positions, followed by residual connection and layer normalization:
         x = self.residual_connection_blocks[1](
             x,
@@ -58,28 +60,30 @@ class DecoderBlock(nn.Module):
         )
         # fully-connected (feed-forward) layer followed by residual connection
         # and layer normalization:
-        return self.residual_connection_blocks[2](x, \
-            self.fully_connected_layer)
+        return self.residual_connection_blocks[2](x,
+                                                  self.fully_connected_layer)
 
 
 class Decoder(nn.Module):
     """
-    Whole decoder, composed of repeated decoder blocks which do not share 
+    Whole decoder, composed of repeated decoder blocks which do not share
     parameters.
     """
-    def __init__(self, base_block, n_clones):
+    def __init__(self, base_block, n_clones) -> None:
         super(Decoder, self).__init__()
         self.layers = get_clones(
             module_to_be_cloned=base_block,
             n_clones=n_clones
         )
-        self.normalization_layer = LayerNorm(base_block.feature_dimension) # TODO: see TODO below
+        self.normalization_layer = LayerNorm(base_block.feature_dimension)
+        # TODO: see TODO below
 
         def forward(self, x: Tensor, src_encoded_tokens: Tensor,
-            src_mask: Tensor, tgt_mask: Tensor) -> Tensor:
+                    src_mask: Tensor, tgt_mask: Tensor) -> Tensor:
             # forwarding inputs throught all decoder blocks:
             for layer in self.layers:
-                x = layer(x=x, src_encoded_tokens=src_encoded_tokens, \
-                    src_mask=src_mask, tgt_mask=tgt_mask)
-            return self.normalization_layer(x) # TODO: understand why this last, additional normalization and why it is not to be masked
-            
+                x = layer(x=x, src_encoded_tokens=src_encoded_tokens,
+                          src_mask=src_mask, tgt_mask=tgt_mask)
+            return self.normalization_layer(x)
+            # TODO: understand why this last, additional normalization and why
+            # it is not to be masked
