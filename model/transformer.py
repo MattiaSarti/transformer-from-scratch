@@ -13,13 +13,13 @@ from torch import zeros as torch_zeros
 from torch.autograd import Variable
 from torch.nn import functional as F
 
-from .attention import *
-from .base import *
-from .embedding import *
-from .encoder import *
-from .decoder import *
+from .attention import MultiHeadedAttention
+from .base import PositionWiseFeedForward
+from .embedding import PositionalEncoding
+from .encoder import Encoder, EncoderBlock
+from .decoder import Decoder, DecoderBlock
 
-from training.training import *
+from training.training import LabelSmoothedLoss, OptimizerHandler
 
 
 class EncoderDecoder(nn.Module):
@@ -226,7 +226,7 @@ class Transformer:
         Execute the whole training of the model.
         """
 
-        criterion = LabelSmoothing(
+        criterion = LabelSmoothedLoss(
             softmax_dimension=self.\
                 hyperparameters['tgt_vocabulary_dimension'],
             padding_token=padding_token,
@@ -275,7 +275,7 @@ class Transformer:
             )
             # initializing predicted output sequence:
             cumulative_tgt_sequence = torch_ones((1, 1), requires_grad=False)\
-                .fill_(value=tgt_bos_token).type_as(src_sequence.data)
+                .fill_(value=tgt_bos_token).type_as(src_sequence)
             # for each target position, the respective token in sequentially
             # predicted, given the decoder auto-regressive prediction nature:
             for i in range(self.hyperparameters['max_sequence_length'] - 1):

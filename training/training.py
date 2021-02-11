@@ -1,7 +1,7 @@
 from time import time
 from typing import Callable
 
-from torch import nn, nonzero, tensor, Tensor
+from torch import nn, nonzero, Tensor
 from torch.optim import Adam
 
 from model.attention import allowed_positions_to_attend
@@ -51,55 +51,123 @@ def execute_training_epoch(data_iterator: Callable, model: nn.Module,
     return cumulative_loss / cumulative_n_tokens_done
 
 
-class LabelSmoothing(nn.Module):
+class LabelSmoothedLoss(nn.Module):
     """
-    Layer carrying out label smoothing, to be used on top of the model of
-    interest during training, before loss computation, to turn the one-hot
-    target probability distributions of each position into smoothed
-    probability distributions.
+    Layer to be stacked on top of the model of interest during training,
+    carrying out label smoothing first and then loss computation, turning the
+    one-hot target probability distributions of each position into smoothed
+    probability distributions before feeding them, toghether with the model
+    output, to the KL-divergence loss computation.
     """
     def __init__(self, softmax_dimension: int, padding_token: int,
                  smoothing_factor: float) -> None:
-        super(LabelSmoothing, self).__init__()
+        super(LabelSmoothedLoss, self).__init__()
         self.softmax_dimension = softmax_dimension
         self.padding_token = padding_token
+        # factor of which:
         self.smoothing_factor = smoothing_factor
-        self.confidence = 1 - smoothing_factor
-        self.criterion = nn.KLDivLoss(size_average=False)
-        # criterion requiring inputs as log-probabilities
-        self.actual_label_distribution = None
+        # factor of which:
+        self.confidence = 1.0 - smoothing_factor
+        # fraction of redistributed probability assigned to each one of the
+        # non-target tokens in the vocabulary (padding token excluded)
+        self.redistributed_probability_each = smoothing_factor /\
+            (softmax_dimension - 2)
+        # loss criterion - requiring inputs as log-probabilities:
+        self.loss_criterion = nn.KLDivLoss(reduction='sum')
 
-    def forward(self, x: Tensor, target_tokens: Tensor) -> Tensor:
-        assert x.size(1) == self.softmax_dimension
-        actual_label_distribution = target_tokens.data.clone()
-        # TODO: understand why then copying data
-        # TODO: ?
-        actual_label_distribution.fill_(self.smoothing_factor /
-                                        (self.softmax_dimension - 2))
-        # TODO: ?
-        actual_label_distribution.scatter(
+        # initialization of label distributions:
+        self.smoothed_tgt_distributions = None
+        # TODO: understand if just to inspect label distributions - not used
+
+    def forward(self, x: Tensor, tgt_tokens: Tensor) -> Tensor:
+
+        # NOTE: assertions are avoided to speed up training:
+        # assert x.size(1) == self.softmax_dimension
+
+        # creating a tensor with the same shape as the input one but filled
+        # with constant values, evenly distributed over all vocabulary tokens,
+        # equal to the smoothing factor divided by the number of tokens in the
+        # vocabulaty except the padding token and the target token, which does
+        # not have to receive a re-distribution of the original target one-hot
+        # unitary probability distribution:
+        smoothed_tgt_distributions = x.clone()
+        smoothed_tgt_distributions.fill_(self.redistributed_probability_each)
+        # NOTE: avoided the original, redundant division, it can be done just
+        # once during initialization to speed up training:
+        # smoothed_tgt_distributions.fill_(self.smoothing_factor /
+        #                                 (self.softmax_dimension - 2))
+
+        # filling the probability values of the target tokens in the smoothed
+        # distributions with the remaining probability portion of the
+        # originally unitary, target one after its partial redistribution over
+        # the other tokens of the vocabulary:
+        smoothed_tgt_distributions.scatter_(
             dim=1,
-            index=target_tokens.data.unsqueeze(),
-            src=self.confidence
+            index=tgt_tokens.unsqueeze(dim=1),
+            value=self.confidence
         )
-        # TODO: ?
-        actual_label_distribution[:, self.padding_token] = 0
-        # if some positions are padded (i.e. actual target sequence length
-        # lower than maximum sequence length):
-        mask = nonzero(target_tokens == self.padding_token)
-        if mask.dim() > 0:
-            # not considering predictions aver padding tokens by setting
-            # those predictions to 0:
-            actual_label_distribution.index_fill_(
+
+        # resetting the padding token probability to 0, as the smoothed
+        # probability amount is redistributed only on meaningful tokens and
+        # not on the padding one when smoothing labels:
+        smoothed_tgt_distributions[:, self.padding_token] = 0
+
+        # for outputs whose target corresponds to the padding token:
+        mask_indices = nonzero(tgt_tokens == self.padding_token)
+        if mask_indices.dim() > 0:  # TODO: '.dim()' is always 2
+            # not considering predictions over samples where the target token
+            # is the padding one by setting all the probability values over
+            # the vocabulary of those predictions to 0:
+            smoothed_tgt_distributions.index_fill_(
                 dim=0,
-                index=mask.squeeze(),
-                val=0.0
+                index=mask_indices.squeeze(),  # TODO: '.squeeze()' redundant?
+                value=0.0
             )
-        self.actual_label_distribution = actual_label_distribution
-        return self.criterion(  # TODO: write arg names
-            x,
-            tensor(actual_label_distribution, requires_grad=False)
+
+        # TODO: understand if just to inspect label distributions - not used
+        self.smoothed_tgt_distributions = smoothed_tgt_distributions
+
+        # TODO: check if necessary:
+        smoothed_tgt_distributions.requires_grad = False
+
+        # returning loss value by considering the smoothed label distributions
+        # instead of the one-hot labels as targets:
+        return self.loss_criterion(
+            input=x,
+            target=smoothed_tgt_distributions
         )
+
+
+class LossComputer:
+    """
+    Take care of loss computation, backpropagation and weight update during a
+    single training iteration.
+    """
+    def __init__(self, final_softmax_layer: nn.Module, criterion,
+                 # TODO: add 'criterion' data type
+                 optimizer: Adam = None) -> None:
+        self.final_softmax_layer = final_softmax_layer
+        self.criterion = criterion
+        self.optimizer = optimizer
+
+    def __call__(self, x: Tensor, y: Tensor, norm) -> float:
+        # TODO: add 'norm' data type AND check returned data type
+
+        # computing final softmax log-probabilities:
+        x = self.final_softmax_layer(x)
+        # computing loss value:
+        loss = self.criterion(
+
+        )
+        # backpropagating gradient to trainable weights:
+        loss.backward()
+        if self.optimizer:
+            # updating trainable weights:
+            self.optimizer.step()
+            # cleaning gradients of trainable weights, for next iteration:
+            self.optimizer.zero_grad()
+        # TODO
+        return loss.item() * norm
 
 
 class MiniBatch:
@@ -114,8 +182,8 @@ class MiniBatch:
         """
         tgt_mask = (tgt_tokens != padding_token).unsqueeze(dim=-2)
         tgt_mask = tgt_mask and \
-            allowed_positions_to_attend(n_positions=tgt.size(-1))\
-            .type_as(tgt_mask.data)
+            allowed_positions_to_attend(n_positions=tgt_tokens.size(-1))\
+            .type_as(tgt_mask)
         # NOTE: the original implementation had '&', which is the bit-wise
         # AND, in place of 'and', which is the logical AND... why? wasn't it
         # wrong?
@@ -133,11 +201,43 @@ class MiniBatch:
             self.tgt_input_tokens = tgt_tokens[:, :-1]  # excluding </s> token
             self.tgt_expected_tokens = tgt_tokens[:, 1:]  # excluding <s> token
             self.actual_n_target_tokens = \
-                (self.tgt_input_tokens != pagging_token).data.sum()
+                (self.tgt_input_tokens != padding_token).sum()
             # only target positions up to the current position are allowed to
             # be attended by the decoder, for each position:
             self.tgt_mask = self.build_mask(tgt_tokens,
                                             padding_token=padding_token)
+
+
+class MiniBatchHandler:
+    """
+    """
+    def __init__(self, max_n_src_tokens_in_minibatch: int,
+                 max_n_tgt_tokens_in_minibatch: int) -> None:
+        self.max_n_src_tokens_in_minibatch = max_n_src_tokens_in_minibatch
+        self.max_n_tgt_tokens_in_minibatch = max_n_tgt_tokens_in_minibatch
+
+    def get_current_minibatch_size(self, new, count: int):
+        # TODO: add data type & understand why they add an unused, additional
+        # argument called 'sofar'
+
+        # resetting initial values when starting a new mini-batch size
+        # monitoring (during construction):
+        if count == 1:
+            self.max_n_src_tokens_in_minibatch = 0
+            self.max_n_tgt_tokens_in_minibatch = 0
+        # :
+        self.max_n_src_tokens_in_minibatch = max(
+            self.max_n_src_tokens_in_minibatch,
+            len()
+        )
+        self.max_n_tgt_tokens_in_minibatch = max(
+            self.max_n_tgt_tokens_in_minibatch,
+            len()
+        )
+        #
+        src_tokens = count * self.max_n_src_tokens_in_minibatch
+        tgt_tokens = count * self.max_n_tgt_tokens_in_minibatch
+        return max(src_tokens, tgt_tokens)
 
 
 class OptimizerHandler:
@@ -182,75 +282,11 @@ class OptimizerHandler:
         current training step counter.
         """
         self._training_step_number += 1
-        self._learning_rate = get_learning_rate(step=self.
-                                                _training_step_number)
+        self._learning_rate = self.get_learning_rate(step=self.
+                                                     _training_step_number)
         # updating the learning rate for all the parameters the optimizer
         # is assigned to:
         for parameters in self.optimizer.param_groups:
             parameters['lr'] = self._learning_rate
         # updating the trainable model parameters:
         self.optimizer.step()
-
-
-class MiniBatchHandler:
-    """
-    """
-    def __init__(self, max_n_src_tokens_in_minibatch: int,
-                 max_n_tgt_tokens_in_minibatch: int) -> None:
-        self.max_n_src_tokens_in_minibatch = max_n_src_tokens_in_minibatch
-        self.max_n_tgt_tokens_in_minibatch = max_n_tgt_tokens_in_minibatch
-
-    def get_current_minibatch_size(self, new, count: int):
-        # TODO: add data type & understand why they add an unused, additional
-        # argument called 'sofar'
-
-        # resetting initial values when starting a new mini-batch size
-        # monitoring (during construction):
-        if count == 1:
-            self.max_n_src_tokens_in_minibatch = 0
-            self.max_n_tgt_tokens_in_minibatch = 0
-        # 
-        self.max_n_src_tokens_in_minibatch = max(
-            self.max_n_src_tokens_in_minibatch,
-            len()
-        )
-        self.max_n_tgt_tokens_in_minibatch = max(
-            self.max_n_tgt_tokens_in_minibatch,
-            len()
-        )
-        #
-        src_tokens = count * self.max_n_src_tokens_in_minibatch
-        tgt_tokens = count * self.max_n_tgt_tokens_in_minibatch
-        return max(src_tokens, tgt_tokens)
-
-
-class LossComputer:
-    """
-    Take care of loss computation, backpropagation and weight update during a
-    single training iteration.
-    """
-    def __init__(self, final_softmax_layer: nn.Module, criterion,
-                 # TODO: add 'criterion' data type
-                 optimizer: Adam = None) -> None:
-        self.final_softmax_layer = final_softmax_layer
-        self.criterion = criterion
-        self.optimizer = optimizer
-
-    def __call__(self, x: Tensor, y: Tensor, norm) -> float:
-        # TODO: add 'norm' data type AND check returned data type
-
-        # computing final softmax log-probabilities:
-        x = self.final_softmax_layer(x)
-        # computing loss value:
-        loss = self.criterion(
-
-        )
-        # backpropagating gradient to trainable weights:
-        loss.backward()
-        if self.optimizer:
-            # updating trainable weights:
-            self.optimizer.step()
-            # cleaning gradients of trainable weights, for next iteration:
-            self.optimizer.zero_grad()
-        # TODO
-        return loss.item() * norm
