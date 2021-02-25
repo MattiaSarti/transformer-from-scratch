@@ -8,78 +8,6 @@ from torch.optim import Adam
 from architecture.attention import allowed_positions_to_attend
 
 
-def copy_task_dataset_builder(
-            vocabulary_size: int, mini_batch_size: int, n_mini_batches: int
-        ) -> Generator[Type[MiniBatch], None, None]:
-    """
-    Build generator yielding dummy samples and labels for a toy source-target
-    copy task.
-    """
-    sequence_length = 10  # same for all sequences, here
-
-    for _ in range(n_mini_batches):
-        # random token indices, excluding 0 because assumed to represent the
-        # padding token:
-        samples = from_numpy(
-            randint(
-                low=1,
-                high=vocabulary_size,
-                size=(mini_batch_size, sequence_length)
-            )
-        )
-        # assuming all sequences start with the same token, an hypothetical
-        # <s> token that can also be found in other positions of the sequences
-        # in this toy task:
-        samples[:, 0] = 1
-        # yielding mini-batch made of identical source and target samples
-        # (i.e. labels equal samples):
-        yield MiniBatch(
-            src_tokens=samples.detach().clone(),  # graph-detached, deep copy
-            tgt_tokens=samples.detach().clone(),  # graph-detached, deep copy
-            padding_token=0  # as assumed above
-        )
-
-
-def execute_training_epoch(
-            copy_task_dataset_builder: Generator[Type[MiniBatch], None, None],
-            model: nn.Module, loss_computer: None
-        ) -> float:
-    # TODO: update data type of loss computer
-    """
-    Execute a single epoch of model training.
-    """
-    tic = time()
-    cumulative_loss = 0
-    cumulative_n_tokens_done = 0
-    # for each mini-batch:
-    for i, mini_batch in enumerate(copy_task_dataset_builder):
-        # forward propagation:
-        output = model(
-            mini_batch.src_tokens,
-            mini_batch.tgt_input_tokens,
-            mini_batch.src_mask, mini_batch.tgt_mask
-            # TODO: understand why it uses model.forward, the docs suggest
-            # using __call__ instead - AND - specify args
-        )
-        loss = loss_computer(
-            output=output,
-            tgt_expected_tokens=mini_batch.tgt_expected_tokens,
-            xxx=mini_batch.actual_n_target_tokens
-        )
-        cumulative_loss += loss
-        cumulative_n_tokens_done += mini_batch.actual_n_target_tokens
-        # displaying loss every 50 mini-batches:
-        if i % 50 == 1:
-            toc = time()
-            print("Mini-batches done: {i} - Loss for the current mini-" +
-                  "batch: {l} - Average time per mini-batch [s]: {t}".format(
-                    i=i, l=round(loss, 4), t=round(((toc-tic) / 50), 1)))
-            tic = time()
-    # returning the average loss across all the tokens of all the
-    # mini-batches:
-    return cumulative_loss / cumulative_n_tokens_done
-
-
 class LabelSmoothedLoss(nn.Module):
     """
     Layer to be stacked on top of the model of interest during training,
@@ -329,3 +257,75 @@ class OptimizerHandler:
             parameters['lr'] = self._learning_rate
         # updating the trainable model parameters:
         self.optimizer.step()
+
+
+def copy_task_dataset_builder(
+            vocabulary_size: int, mini_batch_size: int, n_mini_batches: int
+        ) -> Generator[Type[MiniBatch], None, None]:
+    """
+    Build generator yielding dummy samples and labels for a toy source-target
+    copy task.
+    """
+    sequence_length = 10  # same for all sequences, here
+
+    for _ in range(n_mini_batches):
+        # random token indices, excluding 0 because assumed to represent the
+        # padding token:
+        samples = from_numpy(
+            randint(
+                low=1,
+                high=vocabulary_size,
+                size=(mini_batch_size, sequence_length)
+            )
+        )
+        # assuming all sequences start with the same token, an hypothetical
+        # <s> token that can also be found in other positions of the sequences
+        # in this toy task:
+        samples[:, 0] = 1
+        # yielding mini-batch made of identical source and target samples
+        # (i.e. labels equal samples):
+        yield MiniBatch(
+            src_tokens=samples.detach().clone(),  # graph-detached, deep copy
+            tgt_tokens=samples.detach().clone(),  # graph-detached, deep copy
+            padding_token=0  # as assumed above
+        )
+
+
+def execute_training_epoch(
+            copy_task_dataset_builder: Generator[Type[MiniBatch], None, None],
+            model: nn.Module, loss_computer: None
+        ) -> float:
+    # TODO: update data type of loss computer
+    """
+    Execute a single epoch of model training.
+    """
+    tic = time()
+    cumulative_loss = 0
+    cumulative_n_tokens_done = 0
+    # for each mini-batch:
+    for i, mini_batch in enumerate(copy_task_dataset_builder):
+        # forward propagation:
+        output = model(
+            mini_batch.src_tokens,
+            mini_batch.tgt_input_tokens,
+            mini_batch.src_mask, mini_batch.tgt_mask
+            # TODO: understand why it uses model.forward, the docs suggest
+            # using __call__ instead - AND - specify args
+        )
+        loss = loss_computer(
+            output=output,
+            tgt_expected_tokens=mini_batch.tgt_expected_tokens,
+            xxx=mini_batch.actual_n_target_tokens
+        )
+        cumulative_loss += loss
+        cumulative_n_tokens_done += mini_batch.actual_n_target_tokens
+        # displaying loss every 50 mini-batches:
+        if i % 50 == 1:
+            toc = time()
+            print("Mini-batches done: {i} - Loss for the current mini-" +
+                  "batch: {l} - Average time per mini-batch [s]: {t}".format(
+                    i=i, l=round(loss, 4), t=round(((toc-tic) / 50), 1)))
+            tic = time()
+    # returning the average loss across all the tokens of all the
+    # mini-batches:
+    return cumulative_loss / cumulative_n_tokens_done
