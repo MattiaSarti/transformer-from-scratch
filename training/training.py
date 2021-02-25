@@ -1,5 +1,5 @@
 from time import time
-from typing import Generator, Type
+from typing import Generator
 
 from numpy.random import randint
 from torch import from_numpy, nn, nonzero, Tensor
@@ -70,7 +70,7 @@ class LabelSmoothedLoss(nn.Module):
         # the other tokens of the vocabulary:
         smoothed_tgt_distributions.scatter_(
             dim=1,
-            index=tgt_tokens.unsqueeze(dim=1),
+            index=tgt_tokens.unsqueeze(dim=1),  # 1D -> 2D
             value=self.confidence
         )
 
@@ -103,38 +103,6 @@ class LabelSmoothedLoss(nn.Module):
             input=x,
             target=smoothed_tgt_distributions
         )
-
-
-class LossComputer:
-    """
-    Take care of loss computation, backpropagation and weight update during a
-    single training iteration.
-    """
-    def __init__(self, final_softmax_layer: nn.Module, criterion,
-                 # TODO: add 'criterion' data type
-                 optimizer: Adam = None) -> None:
-        self.final_softmax_layer = final_softmax_layer
-        self.criterion = criterion
-        self.optimizer = optimizer
-
-    def __call__(self, x: Tensor, y: Tensor, norm) -> float:
-        # TODO: add 'norm' data type AND check returned data type
-
-        # computing final softmax log-probabilities:
-        x = self.final_softmax_layer(x)
-        # computing loss value:
-        loss = self.criterion(
-
-        )
-        # backpropagating gradient to trainable weights:
-        loss.backward()
-        if self.optimizer:
-            # updating trainable weights:
-            self.optimizer.step()
-            # cleaning gradients of trainable weights, for next iteration:
-            self.optimizer.zero_grad()
-        # TODO
-        return loss.item() * norm
 
 
 class MiniBatch:
@@ -259,9 +227,55 @@ class OptimizerHandler:
         self.optimizer.step()
 
 
+class LossComputer:
+    """
+    Take care of loss computation, backpropagation and weight update during a
+    single training iteration (for single mini-batch in a given epoch).
+    """
+    def __init__(self, final_softmax_layer: nn.Module, criterion: nn.Module,
+                 optimizer: OptimizerHandler = None) -> None:
+        self.final_softmax_layer = final_softmax_layer
+        self.criterion = criterion
+        self.optimizer = optimizer
+
+    def __call__(self, x: Tensor, y: Tensor, n_mini_batch_tokens: int)\
+             -> float:
+        # TODO: check returned data type - float or Tensor?
+
+        # computing final softmax log-probabilities:
+        x = self.final_softmax_layer(x)
+        # computing loss value, flattening all outputs of all sequences along
+        # a unique dimension (with no changes on the computational graphs but
+        # more efficiently for the subsequent computations, using 2D arrays):
+        loss = self.criterion(
+            x=x..view((-1, x.size(-1))),  # sequences flattened, 3D -> 2D
+            tgt_tokens=y..view(-1)  # completely flattened, 2D -> 1D
+        ) / n_mini_batch_tokens
+        # TODO: understand why this normalization, carried out to
+        # backpropagate and update weights more efficiently and reverted
+        # afterwards to yield the original loss value
+
+        # NOTE: the following step might be included in the next for loop
+        # to execute it, i.e. to compute gradients, only when updating
+        # weights, but this follows the original implementation in case
+        # it is necessary later:
+        # backpropagating gradient to trainable weights:
+        loss.backward()
+
+        # updating weights only when an optimizer is passed:
+        if self.optimizer:
+            # updating trainable weights:
+            self.optimizer.step()
+            # cleaning gradients of trainable weights, for next iteration:
+            self.optimizer.zero_grad()
+
+        # TODO
+        return loss.item() * n_mini_batch_tokens
+
+
 def copy_task_dataset_builder(
             vocabulary_size: int, mini_batch_size: int, n_mini_batches: int
-        ) -> Generator[Type[MiniBatch], None, None]:
+        ) -> Generator[MiniBatch, None, None]:
     """
     Build generator yielding dummy samples and labels for a toy source-target
     copy task.
@@ -292,7 +306,7 @@ def copy_task_dataset_builder(
 
 
 def execute_training_epoch(
-            copy_task_dataset_builder: Generator[Type[MiniBatch], None, None],
+            copy_task_dataset_builder: Generator[MiniBatch, None, None],
             model: nn.Module, loss_computer: None
         ) -> float:
     # TODO: update data type of loss computer
@@ -312,11 +326,13 @@ def execute_training_epoch(
             # TODO: understand why it uses model.forward, the docs suggest
             # using __call__ instead - AND - specify args
         )
+        # loss computation, backpropagation and weight update:
         loss = loss_computer(
             output=output,
             tgt_expected_tokens=mini_batch.tgt_expected_tokens,
             xxx=mini_batch.actual_n_target_tokens
         )
+        # remembering statistics:
         cumulative_loss += loss
         cumulative_n_tokens_done += mini_batch.actual_n_target_tokens
         # displaying loss every 50 mini-batches:
