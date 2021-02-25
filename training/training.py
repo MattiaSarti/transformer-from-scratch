@@ -4,7 +4,7 @@ from typing import Callable
 from torch import nn, nonzero, Tensor
 from torch.optim import Adam
 
-from model.attention import allowed_positions_to_attend
+from architecture.attention import allowed_positions_to_attend
 
 
 def data_iterator() -> Callable:
@@ -54,10 +54,19 @@ def execute_training_epoch(data_iterator: Callable, model: nn.Module,
 class LabelSmoothedLoss(nn.Module):
     """
     Layer to be stacked on top of the model of interest during training,
-    carrying out label smoothing first and then loss computation, turning the
-    one-hot target probability distributions of each position into smoothed
-    probability distributions before feeding them, toghether with the model
-    output, to the KL-divergence loss computation.
+    carrying out label smoothing first and then loss computation, turning
+    each target token id into smoothed probability distributions before
+    feeding them, toghether with the model output, to the KL-divergence
+    loss computation instead of one-hot target probability distributions.
+    Inputs predictions and lables are assumed as flattened along sampples
+    (sequences), i.e. the input has shape: (# outputs, vocabulary size),
+    fusing together outputs from both the same and different sequences,
+    without considering positions. Label smoothing penalizes the model
+    when outputting too "confident" predictions, when predicting a too high
+    probability on the most likely token: the higher this probability over
+    a reasonable value (for which the loss reaches its minimum), the higher
+    the loss becomes, even if less gently than if this probability were lower
+    than the value yielding the loss inimum.
     """
     def __init__(self, softmax_dimension: int, padding_token: int,
                  smoothing_factor: float) -> None:

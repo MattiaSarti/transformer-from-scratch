@@ -18,7 +18,6 @@ from .base import PositionWiseFeedForward
 from .embedding import PositionalEncoding
 from .encoder import Encoder, EncoderBlock
 from .decoder import Decoder, DecoderBlock
-
 from training.training import LabelSmoothedLoss, OptimizerHandler
 
 
