@@ -1,20 +1,49 @@
 from time import time
-from typing import Callable
+from typing import Generator, Type
 
-from torch import nn, nonzero, Tensor
+from numpy.random import randint
+from torch import from_numpy, nn, nonzero, Tensor
 from torch.optim import Adam
 
 from architecture.attention import allowed_positions_to_attend
 
 
-def data_iterator() -> Callable:
+def copy_task_dataset_builder(
+            vocabulary_size: int, mini_batch_size: int, n_mini_batches: int
+        ) -> Generator[Type[MiniBatch], None, None]:
     """
+    Build generator yielding dummy samples and labels for a toy source-target
+    copy task.
     """
-    pass
+    sequence_length = 10  # same for all sequences, here
+
+    for _ in range(n_mini_batches):
+        # random token indices, excluding 0 because assumed to represent the
+        # padding token:
+        samples = from_numpy(
+            randint(
+                low=1,
+                high=vocabulary_size,
+                size=(mini_batch_size, sequence_length)
+            )
+        )
+        # assuming all sequences start with the same token, an hypothetical
+        # <s> token that can also be found in other positions of the sequences
+        # in this toy task:
+        samples[:, 0] = 1
+        # yielding mini-batch made of identical source and target samples
+        # (i.e. labels equal samples):
+        yield MiniBatch(
+            src_tokens=samples.detach().clone(),  # graph-detached, deep copy
+            tgt_tokens=samples.detach().clone(),  # graph-detached, deep copy
+            padding_token=0  # as assumed above
+        )
 
 
-def execute_training_epoch(data_iterator: Callable, model: nn.Module,
-                           loss_computer: None) -> float:
+def execute_training_epoch(
+            copy_task_dataset_builder: Generator[Type[MiniBatch], None, None],
+            model: nn.Module, loss_computer: None
+        ) -> float:
     # TODO: update data type of loss computer
     """
     Execute a single epoch of model training.
@@ -23,7 +52,7 @@ def execute_training_epoch(data_iterator: Callable, model: nn.Module,
     cumulative_loss = 0
     cumulative_n_tokens_done = 0
     # for each mini-batch:
-    for i, mini_batch in enumerate(data_iterator):
+    for i, mini_batch in enumerate(copy_task_dataset_builder):
         # forward propagation:
         output = model(
             mini_batch.src_tokens,
@@ -66,7 +95,8 @@ class LabelSmoothedLoss(nn.Module):
     probability on the most likely token: the higher this probability over
     a reasonable value (for which the loss reaches its minimum), the higher
     the loss becomes, even if less gently than if this probability were lower
-    than the value yielding the loss inimum.
+    than the value yielding the loss minimum. Label smoothing aims at avoiding
+    overfitting, it is a form of regularization.
     """
     def __init__(self, softmax_dimension: int, padding_token: int,
                  smoothing_factor: float) -> None:
@@ -220,32 +250,32 @@ class MiniBatch:
 class MiniBatchHandler:
     """
     """
-    def __init__(self, max_n_src_tokens_in_minibatch: int,
-                 max_n_tgt_tokens_in_minibatch: int) -> None:
-        self.max_n_src_tokens_in_minibatch = max_n_src_tokens_in_minibatch
-        self.max_n_tgt_tokens_in_minibatch = max_n_tgt_tokens_in_minibatch
+    def __init__(self, max_n_src_tokens_in_mini_batch: int,
+                 max_n_tgt_tokens_in_mini_batch: int) -> None:
+        self.max_n_src_tokens_in_mini_batch = max_n_src_tokens_in_mini_batch
+        self.max_n_tgt_tokens_in_mini_batch = max_n_tgt_tokens_in_mini_batch
 
-    def get_current_minibatch_size(self, new, count: int):
+    def get_current_mini_batch_size(self, new, count: int):
         # TODO: add data type & understand why they add an unused, additional
         # argument called 'sofar'
 
         # resetting initial values when starting a new mini-batch size
         # monitoring (during construction):
         if count == 1:
-            self.max_n_src_tokens_in_minibatch = 0
-            self.max_n_tgt_tokens_in_minibatch = 0
+            self.max_n_src_tokens_in_mini_batch = 0
+            self.max_n_tgt_tokens_in_mini_batch = 0
         # :
-        self.max_n_src_tokens_in_minibatch = max(
-            self.max_n_src_tokens_in_minibatch,
+        self.max_n_src_tokens_in_mini_batch = max(
+            self.max_n_src_tokens_in_mini_batch,
             len()
         )
-        self.max_n_tgt_tokens_in_minibatch = max(
-            self.max_n_tgt_tokens_in_minibatch,
+        self.max_n_tgt_tokens_in_mini_batch = max(
+            self.max_n_tgt_tokens_in_mini_batch,
             len()
         )
         #
-        src_tokens = count * self.max_n_src_tokens_in_minibatch
-        tgt_tokens = count * self.max_n_tgt_tokens_in_minibatch
+        src_tokens = count * self.max_n_src_tokens_in_mini_batch
+        tgt_tokens = count * self.max_n_tgt_tokens_in_mini_batch
         return max(src_tokens, tgt_tokens)
 
 
