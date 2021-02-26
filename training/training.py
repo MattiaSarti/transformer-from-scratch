@@ -246,14 +246,18 @@ class LossComputer:
         x = self.final_softmax_layer(x)
         # computing loss value, flattening all outputs of all sequences along
         # a unique dimension (with no changes on the computational graphs but
-        # more efficiently for the subsequent computations, using 2D arrays):
+        # more efficiently for the subsequent computations, using 2D arrays),
+        # i.e. sequences are flattened:
         loss = self.criterion(
-            x=x..view((-1, x.size(-1))),  # sequences flattened, 3D -> 2D
-            tgt_tokens=y..view(-1)  # completely flattened, 2D -> 1D
+            x=x.contiguous().view((-1, x.size(-1))),  # 3D -> 2D
+            tgt_tokens=y.contiguous().view(-1)  # 2D -> 1D
         ) / n_mini_batch_tokens
-        # TODO: understand why this normalization, carried out to
-        # backpropagate and update weights more efficiently and reverted
-        # afterwards to yield the original loss value
+        # this normalization of the loss, which is returned by the criterion
+        # as the sum of all the single loss values, by the number of tokens
+        # in the mini-batch, which is analogous to the number of mini-batches
+        # with sequences flattened and fused together, is carried out only to
+        # backpropagate its gradient and to update weights more efficiently,
+        # and it is reverted afterwards to return the original loss value
 
         # NOTE: the following step might be included in the next for loop
         # to execute it, i.e. to compute gradients, only when updating
@@ -269,7 +273,8 @@ class LossComputer:
             # cleaning gradients of trainable weights, for next iteration:
             self.optimizer.zero_grad()
 
-        # TODO
+        # returning the loss value reverted back to the original,
+        # un-normalized scale:
         return loss.item() * n_mini_batch_tokens
 
 
