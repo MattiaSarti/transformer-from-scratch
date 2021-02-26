@@ -239,7 +239,7 @@ class LossComputer:
         self.optimizer = optimizer
 
     def __call__(self, x: Tensor, y: Tensor, n_mini_batch_tokens: int)\
-             -> float:
+            -> float:
         # TODO: check returned data type - float or Tensor?
 
         # computing final softmax log-probabilities:
