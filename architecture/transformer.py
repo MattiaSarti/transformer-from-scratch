@@ -4,16 +4,18 @@ from math import log, sqrt
 from numpy import ones as np_ones
 from numpy import tril
 from torch import arange as torch_arange
+from torch import cat as torch_cat
 from torch import cos as torch_cos
 from torch import exp as torch_exp
 from torch import from_numpy, matmul, nn, tensor, Tensor
+from torch import max as torch_max
 from torch import ones as torch_ones
 from torch import sin as torch_sin
 from torch import zeros as torch_zeros
 from torch.autograd import Variable
 from torch.nn import functional as F
 
-from .attention import MultiHeadedAttention
+from .attention import allowed_positions_to_attend, MultiHeadedAttention
 from .base import PositionWiseFeedForward
 from .embedding import PositionalEncoding
 from .encoder import Encoder, EncoderBlock
@@ -35,9 +37,6 @@ class EncoderDecoder(nn.Module):
         self.src_embedder = src_embedder
         self.tgt_embedder = tgt_embedder
         self.log_softmax_layer = log_softmax_layer
-        # (not used for building the architecture!! maybe because it is only
-        # uesd at inference time, while the training loss starts from its
-        # inputs to optimize performances)
 
     def forward(self, src_tokens: Tensor, tgt_tokens: Tensor, src_mask:
                 Tensor, tgt_mask: Tensor) -> Tensor:
@@ -253,41 +252,75 @@ class Transformer:
             self.model.eval()
             
 
-    def predict(self, src_sequence: Tensor, src_mask: Tensor, tgt_bos_token:
+    def predict(self, src_sequences: Tensor, src_masks: Tensor, tgt_bos_token:
                 Tensor, decoding_method: str='greedy') -> Tensor:
         """
-        Predict a single source token sequence as an output, target token 
-        sequence.
+        Predict target token sequences from source token sequences.
         """
         # switching to inference mode:
         self.model.eval()
 
-        if decode_method == 'greedy':
+        if decoding_method == 'greedy':
 
             # greedy decoding:
 
-            # computing hidden (i.e. encoded) representations of source 
-            # tokens:
+            # computing encoder outputs, i.e. encoded representations of
+            # source tokens - from dimensionality (samples, tokens) to
+            # dimensionality (samples, tokens, features):
             src_encoded_tokens=self.model.encode(
-                src_tokens=src_sequence,
-                src_mask=src_mask
+                src_tokens=src_sequences,
+                src_mask=src_masks
             )
-            # initializing predicted output sequence:
-            cumulative_tgt_sequence = torch_ones((1, 1), requires_grad=False)\
-                .fill_(value=tgt_bos_token).type_as(src_sequence)
-            # for each target position, the respective token in sequentially
-            # predicted, given the decoder auto-regressive prediction nature:
-            for i in range(self.hyperparameters['max_sequence_length'] - 1):
-                self.model.decode(
+
+            # initializing predicted output sequences:
+            cumulative_tgt_sequences = torch_ones((1, 1), requires_grad=False)\
+                .fill_(value=tgt_bos_token).type_as(src_sequences)
+
+            # for each target position, the respective token is sequentially
+            # predicted, given the decoder auto-regressive predictive nature -
+            # for all sequences at the same time:
+            for _ in range(self.hyperparameters['max_sequence_length'] - 1):
+
+                # computing logits - from dimensionality (samples, tokens,
+                # features) to dimensionality (samples, tokens, features):
+                next_token_logits = self.model.decode(
                     src_encoded_tokens=src_encoded_tokens,
-                    src_mask=src_mask,
-                    tgt_tokens=cumulative_tgt_sequence,
-                    tgt_mask=allowed_positions_to_attend(n_positions=)
+                    src_mask=src_masks,
+                    tgt_tokens=cumulative_tgt_sequences,
+                    tgt_mask=allowed_positions_to_attend(
+                        # positions to attend equal computed target tokens:
+                        n_positions=cumulative_tgt_sequences.size(1)
+                    )
                 )
 
-            return
+                # turning the logits of next (last) tokens in the sequences
+                # into log-probabilities - from dimensionality (samples,
+                # tokens, features) to dimensionality (samples, features):
+                next_token_log_probabilities = self.model.log_softmax_layer(
+                    next_token_logits[:, -1]  # next (last) tokens
+                )
 
-        elif False:
+                # discretizing probabilities to predicted tokens - from
+                # dimensionality (samples, features) to dimensionality
+                # (samples):
+                next_tokens = torch_max(next_token_log_probabilities,
+                                        dim=1).indices
+
+                # concatenating the newly predicted tokens to the sequences of
+                # already predicted tokens:
+                cumulative_tgt_sequences = torch_cat(
+                    (
+                        cumulative_tgt_sequences,
+                        torch_ones(1, 1).type_as(src_sequences)\
+                            .fill_(next_tokens)
+                    ),
+                    dim=1
+                )
+                # FIXME: shapes not understood
+
+            return cumulative_tgt_sequences
+
+        elif False:  # TODO
 
             pass
 
