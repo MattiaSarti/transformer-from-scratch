@@ -1,9 +1,10 @@
-from torch import nn, Tensor
+from torch import Tensor
+from torch.nn import Module
 
 from .base import get_clones, LayerNorm, ResidualConnectionAndLayerNorm
 
 
-class EncoderBlock(nn.Module):
+class EncoderBlock(Module):
     """
     Core encoder block, composed of, from inputs to outputs:
     - multi-headed self-attention layer;
@@ -14,8 +15,8 @@ class EncoderBlock(nn.Module):
     - layer-normalization layer.
     """
     def __init__(self, feature_dimension: int,
-                 self_multi_headed_attention_layer: nn.Module,
-                 fully_connected_layer: nn.Module,
+                 self_multi_headed_attention_layer: Module,
+                 fully_connected_layer: Module,
                  dropout_prob: float) -> None:
         super(EncoderBlock, self).__init__()
         self.feature_dimension = feature_dimension
@@ -47,7 +48,7 @@ class EncoderBlock(nn.Module):
                                                   self.fully_connected_layer)
 
 
-class Encoder(nn.Module):
+class Encoder(Module):
     """
     Whole encoder, composed of repeated encoder blocks which do not share
     parameters.
@@ -61,10 +62,10 @@ class Encoder(nn.Module):
         self.normalization_layer = LayerNorm(base_block.feature_dimension)
         # TODO: see TODO below
 
-        def forward(self, x: Tensor, mask: Tensor) -> Tensor:
-            # forwarding inputs throught all encoder blocks:
-            for layer in self.layers:
-                x = layer(x=x, mask=mask)
-            return self.normalization_layer(x)
-            # TODO: understand why this last, additional normalization and why
-            # it is not to be masked
+    def forward(self, x: Tensor, mask: Tensor) -> Tensor:
+        # forwarding inputs throught all encoder blocks:
+        for layer in self.layers:
+            x = layer(x=x, mask=mask)
+        return self.normalization_layer(x)
+        # TODO: understand why this last, additional normalization and why
+        # it is not to be masked

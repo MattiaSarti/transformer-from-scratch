@@ -1,14 +1,16 @@
 from time import time
 from typing import Generator
 
+from numpy import int64 as numpy_int64
 from numpy.random import randint
-from torch import from_numpy, nn, nonzero, Tensor
+from torch import from_numpy, nonzero, Tensor
+from torch.nn import KLDivLoss, Module
 from torch.optim import Adam
 
 from architecture.attention import allowed_positions_to_attend
 
 
-class LabelSmoothedLoss(nn.Module):
+class LabelSmoothedLoss(Module):
     """
     Layer to be stacked on top of the model of interest during training,
     carrying out label smoothing first and then loss computation, turning
@@ -40,7 +42,7 @@ class LabelSmoothedLoss(nn.Module):
         self.redistributed_probability_each = smoothing_factor /\
             (softmax_dimension - 2)
         # loss criterion - requiring inputs as log-probabilities:
-        self.loss_criterion = nn.KLDivLoss(reduction='sum')
+        self.loss_criterion = KLDivLoss(reduction='sum')
 
         # initialization of label distributions:
         self.smoothed_tgt_distributions = None
@@ -116,9 +118,9 @@ class MiniBatch:
         position by position:
         """
         tgt_mask = (tgt_tokens != padding_token).unsqueeze(dim=-2)
-        tgt_mask = tgt_mask and \
-            allowed_positions_to_attend(n_positions=tgt_tokens.size(-1))\
-            .type_as(tgt_mask)
+        tgt_mask = tgt_mask & \
+            (allowed_positions_to_attend(n_positions=tgt_tokens.size(-1))\
+             .type_as(tgt_mask))
         # NOTE: the original implementation had '&', which is the bit-wise
         # AND, in place of 'and', which is the logical AND... why? wasn't it
         # wrong?
@@ -132,7 +134,7 @@ class MiniBatch:
         # encoder and by decoder:
         self.src_mask = (src_tokens != padding_token).unsqueeze(dim=-2)
         # when target outputs specified:
-        if tgt_tokens:
+        if tgt_tokens is not None:
             self.tgt_input_tokens = tgt_tokens[:, :-1]  # excluding </s> token
             self.tgt_expected_tokens = tgt_tokens[:, 1:]  # excluding <s> token
             self.actual_n_target_tokens = \
@@ -211,7 +213,7 @@ class OptimizerHandler:
             )
         )
 
-    def run_training_step(self):
+    def run_weight_update_step(self):
         """
         Update model parameters, in addition to learning rate value and
         current training step counter.
@@ -225,25 +227,27 @@ class OptimizerHandler:
             parameters['lr'] = self._learning_rate
         # updating the trainable model parameters:
         self.optimizer.step()
+        # cleaning gradients of trainable weights, for the next iteration:
+        self.optimizer.zero_grad()
 
 
-class LossComputer:
+class LossMinimizer:
     """
     Take care of loss computation, backpropagation and weight update during a
     single training iteration (for single mini-batch in a given epoch).
     """
-    def __init__(self, final_softmax_layer: nn.Module, criterion: nn.Module,
-                 optimizer: OptimizerHandler = None) -> None:
-        self.final_softmax_layer = final_softmax_layer
+    def __init__(self, final_log_softmax_layer: Module, criterion: Module,
+                 optimizer_handler: OptimizerHandler = None) -> None:
+        self.final_log_softmax_layer = final_log_softmax_layer
         self.criterion = criterion
-        self.optimizer = optimizer
+        self.optimizer_handler = optimizer_handler
 
     def __call__(self, x: Tensor, y: Tensor, n_mini_batch_tokens: int)\
             -> float:
         # TODO: check returned data type - float or Tensor?
 
         # computing final softmax log-probabilities:
-        x = self.final_softmax_layer(x)
+        x = self.final_log_softmax_layer(x)
         # computing loss value, flattening all outputs of all sequences along
         # a unique dimension (with no changes on the computational graphs but
         # more efficiently for the subsequent computations, using 2D arrays),
@@ -259,19 +263,22 @@ class LossComputer:
         # backpropagate its gradient and to update weights more efficiently,
         # and it is reverted afterwards to return the original loss value
 
-        # NOTE: the following step might be included in the next for loop
-        # to execute it, i.e. to compute gradients, only when updating
-        # weights, but this follows the original implementation in case
-        # it is necessary later:
-        # backpropagating gradient to trainable weights:
-        loss.backward()
 
         # updating weights only when an optimizer is passed:
-        if self.optimizer:
+        if self.optimizer_handler is not None:
+
+            # backpropagating gradient to trainable weights:
+            loss.backward()
+            # NOTE: this step is included in this 'if' statement
+            # to execute it, i.e. to compute gradients, only when updating
+            # weights, contrary to the original implementation
             # updating trainable weights:
-            self.optimizer.step()
-            # cleaning gradients of trainable weights, for next iteration:
-            self.optimizer.zero_grad()
+
+            self.optimizer_handler.run_weight_update_step()
+            # NOTE: gradients of trainable weights are cleaned, for the next
+            # iteration, implicitly within this method call of the optimizer
+            # handler and not explicitly here, contrary to the original
+            # implementation
 
         # returning the loss value reverted back to the original,
         # un-normalized scale:
@@ -294,7 +301,8 @@ def copy_task_dataset_builder(
             randint(
                 low=1,
                 high=vocabulary_size,
-                size=(mini_batch_size, sequence_length)
+                size=(mini_batch_size, sequence_length),
+                dtype=numpy_int64
             )
         )
         # assuming all sequences start with the same token, an hypothetical
@@ -311,35 +319,42 @@ def copy_task_dataset_builder(
 
 
 def execute_training_epoch(
-            copy_task_dataset_builder: Generator[MiniBatch, None, None],
-            model: nn.Module, loss_computer: None
+            dataset_iterator: Generator[MiniBatch, None, None],
+            model: Module, loss_minimizer: None
         ) -> float:
     # TODO: update data type of loss computer
     """
     Execute a single epoch of model training.
     """
-    tic = time()
     cumulative_loss = 0
     cumulative_n_tokens_done = 0
+    tic = time()
+
     # for each mini-batch:
-    for i, mini_batch in enumerate(copy_task_dataset_builder):
+    for i, mini_batch in enumerate(dataset_iterator):
+
         # forward propagation:
-        output = model(
-            mini_batch.src_tokens,
-            mini_batch.tgt_input_tokens,
-            mini_batch.src_mask, mini_batch.tgt_mask
-            # TODO: understand why it uses model.forward, the docs suggest
-            # using __call__ instead - AND - specify args
+        output = model.forward(
+            # TODO: understand why it uses "model.forward()", despite the docs
+            # suggest using "model.__call__()" by directly calling "model()"
+            # instead
+            src_tokens=mini_batch.src_tokens,
+            tgt_tokens=mini_batch.tgt_input_tokens,
+            src_mask=mini_batch.src_mask,
+            tgt_mask=mini_batch.tgt_mask
         )
+
         # loss computation, backpropagation and weight update:
-        loss = loss_computer(
+        loss = loss_minimizer(
             output=output,
             tgt_expected_tokens=mini_batch.tgt_expected_tokens,
             xxx=mini_batch.actual_n_target_tokens
         )
+
         # remembering statistics:
         cumulative_loss += loss
         cumulative_n_tokens_done += mini_batch.actual_n_target_tokens
+
         # displaying loss every 50 mini-batches:
         if i % 50 == 1:
             toc = time()
@@ -347,6 +362,7 @@ def execute_training_epoch(
                   "batch: {l} - Average time per mini-batch [s]: {t}".format(
                     i=i, l=round(loss, 4), t=round(((toc-tic) / 50), 1)))
             tic = time()
+
     # returning the average loss across all the tokens of all the
     # mini-batches:
     return cumulative_loss / cumulative_n_tokens_done

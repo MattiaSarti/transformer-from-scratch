@@ -1,9 +1,10 @@
-from torch import nn, Tensor
+from torch import Tensor
+from torch.nn import Module
 
 from .base import get_clones, LayerNorm, ResidualConnectionAndLayerNorm
 
 
-class DecoderBlock(nn.Module):
+class DecoderBlock(Module):
     """
     Core decoder block, composed of, from inputs to outputs:
     - multi-headed self-attention layer;
@@ -17,9 +18,9 @@ class DecoderBlock(nn.Module):
     - layer-normalization layer.
     """
     def __init__(self, feature_dimension: int,
-                 self_multi_headed_attention_layer: nn.Module,
-                 source_multi_headed_attention_layer: nn.Module,
-                 fully_connected_layer: nn.Module, dropout_prob: float)\
+                 self_multi_headed_attention_layer: Module,
+                 source_multi_headed_attention_layer: Module,
+                 fully_connected_layer: Module, dropout_prob: float)\
             -> None:
         super(DecoderBlock, self).__init__()
         self.feature_dimension = feature_dimension
@@ -64,7 +65,7 @@ class DecoderBlock(nn.Module):
                                                   self.fully_connected_layer)
 
 
-class Decoder(nn.Module):
+class Decoder(Module):
     """
     Whole decoder, composed of repeated decoder blocks which do not share
     parameters.

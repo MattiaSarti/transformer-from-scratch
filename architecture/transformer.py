@@ -1,5 +1,6 @@
 from copy import deepcopy
 from math import log, sqrt
+from typing import Tuple
 
 from numpy import ones as np_ones
 from numpy import tril
@@ -7,30 +8,34 @@ from torch import arange as torch_arange
 from torch import cat as torch_cat
 from torch import cos as torch_cos
 from torch import exp as torch_exp
-from torch import from_numpy, matmul, nn, tensor, Tensor
+from torch import from_numpy, matmul, tensor, Tensor
 from torch import max as torch_max
 from torch import ones as torch_ones
 from torch import sin as torch_sin
 from torch import zeros as torch_zeros
 from torch.autograd import Variable
 from torch.nn import functional as F
+from torch.nn import Module, Sequential
+from torch.nn.init import xavier_uniform_
+from torch.optim import Adam
 
 from .attention import allowed_positions_to_attend, MultiHeadedAttention
-from .base import PositionWiseFeedForward
-from .embedding import PositionalEncoding
+from .base import LogSoftmax, PositionWiseFeedForward
+from .embedding import Embedder, PositionalEncoding
 from .encoder import Encoder, EncoderBlock
 from .decoder import Decoder, DecoderBlock
-from training.training import LabelSmoothedLoss, OptimizerHandler
+from training.training import copy_task_dataset_builder, execute_training_epoch,\
+    LabelSmoothedLoss, LossMinimizer, OptimizerHandler
 
 
-class EncoderDecoder(nn.Module):
+class EncoderDecoder(Module):
     """
     Base architecture for encoder-decoder sequence-to-sequence Transformer
     models.
     """
-    def __init__(self, encoder: nn.Module, decoder: nn.Module, src_embedder:
-                 nn.Module, tgt_embedder: nn.Module, log_softmax_layer:
-                 nn.Module) -> None:
+    def __init__(self, encoder: Module, decoder: Module, src_embedder:
+                 Module, tgt_embedder: Module, log_softmax_layer:
+                 Module) -> None:
         super(EncoderDecoder, self).__init__()
         self.encoder = encoder
         self.decoder = decoder
@@ -135,7 +140,7 @@ class Transformer:
         n_attention_heads: int,
         max_sequence_length: int,
         dropout_prob: float
-    ) -> nn.Module:
+    ) -> Module:
         """
         Return a Transformer model object instantiated with the architecture
         specified by the input hyperparameters, with newly initialized
@@ -184,7 +189,7 @@ class Transformer:
                 ),
                 n_clones=n_encoder_blocks
             ),
-            src_embedder=nn.Sequential(
+            src_embedder=Sequential(
                 Embedder(
                     token_representation_dimension=
                         token_representation_dimension,
@@ -192,7 +197,7 @@ class Transformer:
                 ),
                 deepcopy(positional_encoding_layer)
             ),
-            tgt_embedder=nn.Sequential(
+            tgt_embedder=Sequential(
                 Embedder(
                     token_representation_dimension=
                         token_representation_dimension,
@@ -213,16 +218,27 @@ class Transformer:
             # TODO: explain why:
             if parameter.dim() > 1:
                 # parameters initialized following Xavier initialization:
-                nn.init.xavier_uniform(parameter)
+                xavier_uniform_(parameter)
 
         return model
 
-    def train(self, n_epochs: int, padding_token: int,
-              label_smoothing_factor: int, learning_rate_n_warmup_steps: int,
-              learning_rate_amplification_factor: float) -> None:
+    def train_on_toy_copy_taks(
+            self,
+            mini_batch_size: int,
+            n_epochs: int,
+            padding_token: int,
+            label_smoothing_factor: float,
+            learning_rate_n_warmup_steps: int = 4000,
+            learning_rate_amplification_factor: float = 2,
+            adam_betas: Tuple[float, float] = (0.9, 0.98),
+            adam_epsilon: float = 1e-9
+        ) -> None:
         """
         Execute the whole training of the model.
         """
+        assert self.hyperparameters['src_vocabulary_dimension'] == self.hyperparameters['tgt_vocabulary_dimension'], "For this toy task, the source and target vocabularies have to be shared."
+        assert padding_token == 0, "For this toy task, the padding token index has to be 0."
+        assert self.hyperparameters['max_sequence_length'] == 10, "For this toy task, the maximum sequence length has to be 10."
 
         criterion = LabelSmoothedLoss(
             softmax_dimension=self.\
@@ -230,9 +246,12 @@ class Transformer:
             padding_token=padding_token,
             smoothing_factor=label_smoothing_factor
         )
-        optimizer = OptimizerHandler(
+        optimizer_handler = OptimizerHandler(
             optimizer=Adam(
-
+                params=self.model.parameters(),
+                lr=0,  # as learning rate is customized externally
+                betas=adam_betas,
+                eps=adam_epsilon
             ),
             n_warmup_steps=learning_rate_n_warmup_steps, 
             amplification_factor=learning_rate_amplification_factor,
@@ -241,19 +260,55 @@ class Transformer:
         )
 
         # for each training epoch:
-        for epoch in range(n_epochs):
+        for _ in range(n_epochs):
+
             # switching to training mode:
             self.model.train()
-            # :
-            execute_training_epoch(
 
+            # executing a training epoch:
+            execute_training_epoch(
+                dataset_iterator=copy_task_dataset_builder(
+                    vocabulary_size=self.\
+                        hyperparameters['src_vocabulary_dimension'],
+                    mini_batch_size=mini_batch_size,
+                    n_mini_batches=(int(n_epochs / mini_batch_size) + 1)
+                ),
+                model=self.model,
+                loss_minimizer=LossMinimizer(
+                    final_log_softmax_layer=self.model.log_softmax_layer,
+                    criterion=criterion,
+                    optimizer_handler=optimizer_handler
+                )
             )
+
             # back to inference mode:
             self.model.eval()
+
+            # evaluating performances:
+            execute_training_epoch(
+                dataset_iterator=copy_task_dataset_builder(
+                    vocabulary_size=self.\
+                        hyperparameters['src_vocabulary_dimension'],
+                    mini_batch_size=mini_batch_size,
+                    n_mini_batches=(int(n_epochs / mini_batch_size) + 1)
+                ),
+                model=self.model,
+                loss_minimizer=LossMinimizer(
+                    final_log_softmax_layer=self.model.log_softmax_layer,
+                    criterion=criterion,
+                    # no backpropagation and weight update:
+                    optimizer_handler=None
+                )
+            )
             
 
-    def predict(self, src_sequences: Tensor, src_masks: Tensor, tgt_bos_token:
-                Tensor, decoding_method: str='greedy') -> Tensor:
+    def predict(
+            self,
+            src_sequences: Tensor,
+            src_masks: Tensor,
+            tgt_bos_token: Tensor,
+            decoding_method: str = 'greedy'
+        ) -> Tensor:
         """
         Predict target token sequences from source token sequences.
         """
