@@ -1,31 +1,21 @@
 from copy import deepcopy
-from math import log, sqrt
 from typing import Tuple
 
-from numpy import ones as np_ones
-from numpy import tril
-from torch import arange as torch_arange
 from torch import cat as torch_cat
-from torch import cos as torch_cos
-from torch import exp as torch_exp
-from torch import from_numpy, matmul, tensor, Tensor
+from torch import Tensor
 from torch import max as torch_max
 from torch import ones as torch_ones
-from torch import sin as torch_sin
-from torch import zeros as torch_zeros
-from torch.autograd import Variable
-from torch.nn import functional as F
 from torch.nn import Module, Sequential
 from torch.nn.init import xavier_uniform_
 from torch.optim import Adam
 
-from .attention import allowed_positions_to_attend, MultiHeadedAttention
+from .attention import allowed_positions_to_attend, MultiHeadAttention
 from .base import LogSoftmax, PositionWiseFeedForward
 from .embedding import Embedder, PositionalEncoding
 from .encoder import Encoder, EncoderBlock
 from .decoder import Decoder, DecoderBlock
-from training.training import copy_task_dataset_builder, execute_training_epoch,\
-    LabelSmoothedLoss, LossMinimizer, OptimizerHandler
+from training.training import copy_task_dataset_builder,\
+    execute_training_epoch, LabelSmoothedLoss, LossMinimizer, OptimizerHandler
 
 
 class EncoderDecoder(Module):
@@ -135,7 +125,7 @@ class Transformer:
         tgt_vocabulary_dimension: int,
         n_encoder_blocks: int,
         n_decoder_blocks: int,
-        token_representation_dimension: int,
+        representation_dimension: int,
         feedforward_dimension: int,
         n_attention_heads: int,
         max_sequence_length: int,
@@ -149,27 +139,28 @@ class Transformer:
 
         # building the architecture:
 
-        # instantiating base layers:
-        multi_headed_attention_later = MultiHeadedAttention(
+        # instantiating (some of) the base layers:
+        multi_headed_attention_later = MultiHeadAttention(
             n_attention_heads=n_attention_heads,
-            token_representation_dimension=token_representation_dimension,
+            token_representation_dimension=representation_dimension,
             dropout_prob=dropout_prob
         )
         feedforward_layer = PositionWiseFeedForward(
-            token_representation_dimension=token_representation_dimension,
+            token_representation_dimension=representation_dimension,
             feedforward_dimension=feedforward_dimension,
             dropout_prob=dropout_prob
         )
         positional_encoding_layer = PositionalEncoding(
-            token_representation_dimension=token_representation_dimension,
+            token_representation_dimension=representation_dimension,
             dropout_prob=dropout_prob,
             max_sequence_length=max_sequence_length
         )
-        # composing base layers to build the whole model architecture:
+
+        # composing the base layers to build the whole model architecture:
         model = EncoderDecoder(
             encoder=Encoder(
                 base_block=EncoderBlock(
-                    feature_dimension=token_representation_dimension,
+                    feature_dimension=representation_dimension,
                     self_multi_headed_attention_layer=deepcopy(
                         multi_headed_attention_later),
                     fully_connected_layer=deepcopy(feedforward_layer),
@@ -179,7 +170,7 @@ class Transformer:
             ),
             decoder=Decoder(
                 base_block=DecoderBlock(
-                    feature_dimension=token_representation_dimension,
+                    feature_dimension=representation_dimension,
                     self_multi_headed_attention_layer=deepcopy(
                         multi_headed_attention_later),
                     source_multi_headed_attention_layer=deepcopy(
@@ -191,22 +182,20 @@ class Transformer:
             ),
             src_embedder=Sequential(
                 Embedder(
-                    token_representation_dimension=
-                        token_representation_dimension,
+                    token_representation_dimension=representation_dimension,
                     vocabulary_dimension=src_vocabulary_dimension
                 ),
                 deepcopy(positional_encoding_layer)
             ),
             tgt_embedder=Sequential(
                 Embedder(
-                    token_representation_dimension=
-                        token_representation_dimension,
+                    token_representation_dimension=representation_dimension,
                     vocabulary_dimension=tgt_vocabulary_dimension
                 ),
                 deepcopy(positional_encoding_layer)
             ),
             log_softmax_layer=LogSoftmax(
-                token_representation_dimension=token_representation_dimension,
+                token_representation_dimension=representation_dimension,
                 vocabulary_dimension=tgt_vocabulary_dimension
             )
         )
@@ -222,27 +211,31 @@ class Transformer:
 
         return model
 
-    def train_on_toy_copy_taks(
-            self,
-            mini_batch_size: int,
-            n_epochs: int,
-            padding_token: int,
-            label_smoothing_factor: float,
-            learning_rate_n_warmup_steps: int = 4000,
-            learning_rate_amplification_factor: float = 2,
-            adam_betas: Tuple[float, float] = (0.9, 0.98),
-            adam_epsilon: float = 1e-9
-        ) -> None:
+    def train_on_toy_copy_task(
+                self,
+                mini_batch_size: int,
+                n_epochs: int,
+                padding_token: int,
+                label_smoothing_factor: float,
+                learning_rate_n_warmup_steps: int = 4000,
+                learning_rate_amplification_factor: float = 2,
+                adam_betas: Tuple[float, float] = (0.9, 0.98),
+                adam_epsilon: float = 1e-9
+            ) -> None:
         """
         Execute the whole training of the model.
         """
-        assert self.hyperparameters['src_vocabulary_dimension'] == self.hyperparameters['tgt_vocabulary_dimension'], "For this toy task, the source and target vocabularies have to be shared."
-        assert padding_token == 0, "For this toy task, the padding token index has to be 0."
-        assert self.hyperparameters['max_sequence_length'] == 10, "For this toy task, the maximum sequence length has to be 10."
+        assert self.hyperparameters['src_vocabulary_dimension'] == self\
+            .hyperparameters['tgt_vocabulary_dimension'], "For this toy"\
+            + " task, the source and target vocabularies have to be shared."
+        assert padding_token == 0, "For this toy task, the padding token"\
+            + " index has to be 0."
+        assert self.hyperparameters['max_sequence_length'] == 10, "For this"\
+            + " toy task, the maximum sequence length has to be 10."
 
         criterion = LabelSmoothedLoss(
-            softmax_dimension=self.\
-                hyperparameters['tgt_vocabulary_dimension'],
+            softmax_dimension=self.hyperparameters[
+                                   'tgt_vocabulary_dimension'],
             padding_token=padding_token,
             smoothing_factor=label_smoothing_factor
         )
@@ -253,10 +246,10 @@ class Transformer:
                 betas=adam_betas,
                 eps=adam_epsilon
             ),
-            n_warmup_steps=learning_rate_n_warmup_steps, 
+            n_warmup_steps=learning_rate_n_warmup_steps,
             amplification_factor=learning_rate_amplification_factor,
-            model_hidden_dimension=self.\
-                hyperparameters['token_representation_dimension']
+            model_hidden_dimension=self.hyperparameters[
+                                        'token_representation_dimension']
         )
 
         # for each training epoch:
@@ -268,8 +261,8 @@ class Transformer:
             # executing a training epoch:
             execute_training_epoch(
                 dataset_iterator=copy_task_dataset_builder(
-                    vocabulary_size=self.\
-                        hyperparameters['src_vocabulary_dimension'],
+                    vocabulary_size=self.hyperparameters[
+                                         'src_vocabulary_dimension'],
                     mini_batch_size=mini_batch_size,
                     n_mini_batches=(int(n_epochs / mini_batch_size) + 1)
                 ),
@@ -287,8 +280,8 @@ class Transformer:
             # evaluating performances:
             execute_training_epoch(
                 dataset_iterator=copy_task_dataset_builder(
-                    vocabulary_size=self.\
-                        hyperparameters['src_vocabulary_dimension'],
+                    vocabulary_size=self.hyperparameters[
+                                         'src_vocabulary_dimension'],
                     mini_batch_size=mini_batch_size,
                     n_mini_batches=(int(n_epochs / mini_batch_size) + 1)
                 ),
@@ -300,15 +293,14 @@ class Transformer:
                     optimizer_handler=None
                 )
             )
-            
 
     def predict(
-            self,
-            src_sequences: Tensor,
-            src_masks: Tensor,
-            tgt_bos_token: Tensor,
-            decoding_method: str = 'greedy'
-        ) -> Tensor:
+                self,
+                src_sequences: Tensor,
+                src_masks: Tensor,
+                tgt_bos_token: Tensor,
+                decoding_method: str = 'greedy'
+            ) -> Tensor:
         """
         Predict target token sequences from source token sequences.
         """
@@ -322,7 +314,7 @@ class Transformer:
             # computing encoder outputs, i.e. encoded representations of
             # source tokens - from dimensionality (samples, tokens) to
             # dimensionality (samples, tokens, features):
-            src_encoded_tokens=self.model.encode(
+            src_encoded_tokens = self.model.encode(
                 src_tokens=src_sequences,
                 src_mask=src_masks
             )
@@ -366,8 +358,8 @@ class Transformer:
                 cumulative_tgt_sequences = torch_cat(
                     (
                         cumulative_tgt_sequences,
-                        torch_ones(1, 1).type_as(src_sequences)\
-                            .fill_(next_tokens)
+                        torch_ones(1, 1).type_as(src_sequences)
+                                        .fill_(next_tokens)
                     ),
                     dim=1
                 )
@@ -381,4 +373,5 @@ class Transformer:
 
         else:
 
-            raise Exception("Unknown decoding method for prediction: " + decoding_method)
+            raise Exception("Unknown decoding method for prediction: "
+                            + decoding_method)

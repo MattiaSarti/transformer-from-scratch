@@ -28,7 +28,7 @@ class DecoderBlock(Module):
             self_multi_headed_attention_layer
         self.source_multi_headed_attention_layer = \
             source_multi_headed_attention_layer
-        self.fully_connected_layer = None
+        self.fully_connected_layer = fully_connected_layer
         self.residual_connection_blocks = get_clones(
             module_to_be_cloned=ResidualConnectionAndLayerNorm(
                 feature_dimension=feature_dimension,
@@ -79,12 +79,12 @@ class Decoder(Module):
         self.normalization_layer = LayerNorm(base_block.feature_dimension)
         # TODO: see TODO below
 
-        def forward(self, x: Tensor, src_encoded_tokens: Tensor,
-                    src_mask: Tensor, tgt_mask: Tensor) -> Tensor:
-            # forwarding inputs throught all decoder blocks:
-            for layer in self.layers:
-                x = layer(x=x, src_encoded_tokens=src_encoded_tokens,
-                          src_mask=src_mask, tgt_mask=tgt_mask)
-            return self.normalization_layer(x)
-            # TODO: understand why this last, additional normalization and why
-            # it is not to be masked
+    def forward(self, x: Tensor, src_encoded_tokens: Tensor,
+                src_mask: Tensor, tgt_mask: Tensor) -> Tensor:
+        # forwarding inputs throught all decoder blocks:
+        for layer in self.layers:
+            x = layer(x=x, src_encoded_tokens=src_encoded_tokens,
+                      src_mask=src_mask, tgt_mask=tgt_mask)
+        return self.normalization_layer(x)
+        # TODO: understand why this last, additional normalization and why
+        # it is not to be masked

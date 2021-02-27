@@ -59,8 +59,11 @@ class LabelSmoothedLoss(Module):
         # vocabulaty except the padding token and the target token, which does
         # not have to receive a re-distribution of the original target one-hot
         # unitary probability distribution:
-        smoothed_tgt_distributions = x.clone()
+        smoothed_tgt_distributions = x.detach().clone()
+        # NOTE: necessary to make the smoothed label distributions not require
+        # backpropagation (i.e. gradient computations and weight update)
         smoothed_tgt_distributions.fill_(self.redistributed_probability_each)
+
         # NOTE: avoided the original, redundant division, it can be done just
         # once during initialization to speed up training:
         # smoothed_tgt_distributions.fill_(self.smoothing_factor /
@@ -96,9 +99,6 @@ class LabelSmoothedLoss(Module):
         # TODO: understand if just to inspect label distributions - not used
         self.smoothed_tgt_distributions = smoothed_tgt_distributions
 
-        # TODO: check if necessary:
-        smoothed_tgt_distributions.requires_grad = False
-
         # returning loss value by considering the smoothed label distributions
         # instead of the one-hot labels as targets:
         return self.loss_criterion(
@@ -118,9 +118,11 @@ class MiniBatch:
         position by position:
         """
         tgt_mask = (tgt_tokens != padding_token).unsqueeze(dim=-2)
-        tgt_mask = tgt_mask & \
-            (allowed_positions_to_attend(n_positions=tgt_tokens.size(-1))\
-             .type_as(tgt_mask))
+        tgt_mask = tgt_mask & (
+            allowed_positions_to_attend(
+                n_positions=tgt_tokens.size(-1)
+            ).type_as(tgt_mask)
+        )
         # NOTE: the original implementation had '&', which is the bit-wise
         # AND, in place of 'and', which is the logical AND... why? wasn't it
         # wrong?
@@ -141,7 +143,7 @@ class MiniBatch:
                 (self.tgt_input_tokens != padding_token).sum()
             # only target positions up to the current position are allowed to
             # be attended by the decoder, for each position:
-            self.tgt_mask = self.build_mask(tgt_tokens,
+            self.tgt_mask = self.build_mask(self.tgt_input_tokens,
                                             padding_token=padding_token)
 
 
@@ -191,12 +193,12 @@ class OptimizerHandler:
         self._training_step_number = 0
         self._learning_rate = 0
 
-    def get_learning_rate(self, step=None):
+    def get_learning_rate(self, step: int = None):
         """
         Return the learning rate at the input step according to the Noam
         learning rate trend.
         """
-        if not step:
+        if step is not None:
             step = self._training_step_number
         # reconstructing Noam trend as (amplified, by a scalar) minimum
         # between a line passing through origin with positive slope - initial
@@ -244,6 +246,10 @@ class LossMinimizer:
 
     def __call__(self, x: Tensor, y: Tensor, n_mini_batch_tokens: int)\
             -> float:
+        """
+        Compute loss from logits, and, if an optimizer handler is passed,
+        backpropagate gradient and update weights to minimize loss.
+        """
         # TODO: check returned data type - float or Tensor?
 
         # computing final softmax log-probabilities:
@@ -262,7 +268,6 @@ class LossMinimizer:
         # with sequences flattened and fused together, is carried out only to
         # backpropagate its gradient and to update weights more efficiently,
         # and it is reverted afterwards to return the original loss value
-
 
         # updating weights only when an optimizer is passed:
         if self.optimizer_handler is not None:
@@ -346,9 +351,9 @@ def execute_training_epoch(
 
         # loss computation, backpropagation and weight update:
         loss = loss_minimizer(
-            output=output,
-            tgt_expected_tokens=mini_batch.tgt_expected_tokens,
-            xxx=mini_batch.actual_n_target_tokens
+            x=output,
+            y=mini_batch.tgt_expected_tokens,
+            n_mini_batch_tokens=mini_batch.actual_n_target_tokens
         )
 
         # remembering statistics:

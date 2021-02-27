@@ -60,7 +60,9 @@ class PositionalEncoding(Module):
         )  # ✓ see demonstration on my notes ▢
 
         # interleaving sinusoidal and cosinusoidal components along feature
-        # dimension (starting with sine):
+        # dimension (starting with sine), yielding positional signals for
+        # all the allowed positions (for sequences up to the maximum allowed
+        # length):
         positional_signals[:, 0::2] = torch_sin(wave_inputs)
         positional_signals[:, 1::2] = torch_cos(wave_inputs)
         positional_signals = positional_signals.unsqueeze(dim=0)
@@ -72,5 +74,5 @@ class PositionalEncoding(Module):
 
     def forward(self, x) -> Tensor:
         return self.dropout_layer(
-            x + self.positional_signals
+            x + self.positional_signals[:, :x.size(1)]  # only over sequence
         )

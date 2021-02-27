@@ -4,7 +4,7 @@ from torch import Tensor
 from torch import ones as torch_ones
 from torch import zeros as torch_zeros
 from torch.nn import Dropout, Linear, Module, ModuleList, Parameter
-from torch.nn.functional import log_softmax
+from torch.nn.functional import log_softmax, relu
 
 
 def get_clones(module_to_be_cloned, n_clones) -> ModuleList:
@@ -29,7 +29,7 @@ class LogSoftmax(Module):
         )
 
     def forward(self, x: Tensor) -> Tensor:
-        return F.log_softmax(self.linear_layer(x), dim=-1)
+        return log_softmax(self.linear_layer(x), dim=-1)
 
 
 class LayerNorm(Module):
@@ -61,8 +61,10 @@ class ResidualConnectionAndLayerNorm(Module):
         self.dropout_layer = Dropout(p=dropout_prob)
 
     def forward(self, x, base_layer: Module) -> Tensor:
-        return self.layer_normalization_layer(
-            x + self.dropout_layer(base_layer(x))
+        return x + self.dropout_layer(
+            base_layer(
+                self.layer_normalization_layer(x)
+            )
         )
     # TODO: understand why norm is applied first instead of last in their
     # implementation: "Note for code simplicity the norm is first as opposed
@@ -90,7 +92,7 @@ class PositionWiseFeedForward(Module):
         )
         self.dropout_layer = Dropout(dropout_prob)
 
-        def forward(self, x: Tensor) -> Tensor:
-            return self.linear_layer_2(
-                self.dropout_layer(F.relu(self.linear_layer_1(x)))
-            )
+    def forward(self, x: Tensor) -> Tensor:
+        return self.linear_layer_2(
+            self.dropout_layer(relu(self.linear_layer_1(x)))
+        )

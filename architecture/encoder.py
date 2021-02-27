@@ -44,7 +44,7 @@ class EncoderBlock(Module):
         )
         # fully-connected (feed-forward) layer followed by residual connection
         # and layer normalization:
-        return self.residual_connection_blocks[0](x,
+        return self.residual_connection_blocks[1](x,
                                                   self.fully_connected_layer)
 
 
