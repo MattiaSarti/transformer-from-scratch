@@ -3,8 +3,8 @@ from math import sqrt
 from numpy import ones as np_ones
 from numpy import tril
 from torch import from_numpy, matmul, nn, Tensor
-from torch.nn import functional as F
 from torch.nn import Dropout, Linear, Module
+from torch.nn.functional import softmax
 
 from .base import get_clones
 
