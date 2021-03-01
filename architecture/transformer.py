@@ -91,7 +91,7 @@ class Transformer:
                 'tgt_vocabulary_dimension': tgt_vocabulary_dimension,
                 'n_encoder_blocks': n_encoder_blocks,
                 'n_decoder_blocks': n_decoder_blocks,
-                'token_representation_dimension':
+                'representation_dimension':
                     token_representation_dimension,
                 'feedforward_dimension': feedforward_dimension,
                 'n_attention_heads': n_attention_heads,
@@ -112,7 +112,7 @@ class Transformer:
             # self.n_encoder_blocks=hyperparameters['n_encoder_blocks'],
             # self.n_decoder_blocks=hyperparameters['n_decoder_blocks'],
             # self.token_representation_dimension=\
-            #     hyperparameters['token_representation_dimension'],
+            #     hyperparameters['representation_dimension'],
             # self.feedforward_dimension=\
             #     hyperparameters['feedforward_dimension'],
             # self.n_attention_heads=hyperparameters['n_attention_heads'],
@@ -213,6 +213,7 @@ class Transformer:
 
     def train_on_toy_copy_task(
                 self,
+                epoch_samples: int,
                 mini_batch_size: int,
                 n_epochs: int,
                 padding_token: int,
@@ -249,39 +250,43 @@ class Transformer:
             n_warmup_steps=learning_rate_n_warmup_steps,
             amplification_factor=learning_rate_amplification_factor,
             model_hidden_dimension=self.hyperparameters[
-                                        'token_representation_dimension']
+                                        'representation_dimension']
         )
 
         # for each training epoch:
-        for _ in range(n_epochs):
+        for epoch in range(n_epochs):
+
+            print('-' * 60)
+            print("Epoch " + str(epoch + 1) + "/" + str(n_epochs))
 
             # switching to training mode:
             self.model.train()
 
             # executing a training epoch:
-            execute_training_epoch(
+            _ = execute_training_epoch(
                 dataset_iterator=copy_task_dataset_builder(
                     vocabulary_size=self.hyperparameters[
                                          'src_vocabulary_dimension'],
                     mini_batch_size=mini_batch_size,
-                    n_mini_batches=(int(n_epochs / mini_batch_size) + 1)
+                    n_mini_batches=(int(epoch_samples / mini_batch_size))
                 ),
                 model=self.model,
                 loss_minimizer=LossMinimizer(
                     final_log_softmax_layer=self.model.log_softmax_layer,
                     criterion=criterion,
                     optimizer_handler=optimizer_handler
-                )
+                ),
+                verbose=True
             )
 
             # back to inference mode:
             self.model.eval()
 
             # evaluating performances:
-            execute_training_epoch(
+            loss = execute_training_epoch(
                 dataset_iterator=copy_task_dataset_builder(
                     vocabulary_size=self.hyperparameters[
-                                         'src_vocabulary_dimension'],
+                                        'src_vocabulary_dimension'],
                     mini_batch_size=mini_batch_size,
                     n_mini_batches=(int(n_epochs / mini_batch_size) + 1)
                 ),
@@ -291,8 +296,12 @@ class Transformer:
                     criterion=criterion,
                     # no backpropagation and weight update:
                     optimizer_handler=None
-                )
+                ),
+                verbose=False
             )
+            print("Average Loss per Token: {l:.3f}".format(l=loss))
+
+        print('-' * 60)
 
     def predict(
                 self,

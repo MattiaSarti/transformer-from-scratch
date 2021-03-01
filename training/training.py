@@ -1,3 +1,7 @@
+"""
+Utilities for training a Transformer.
+"""
+
 from time import time
 from typing import Generator
 
@@ -128,8 +132,8 @@ class MiniBatch:
         # wrong?
         return tgt_mask
 
-    def __init__(self, src_tokens: Tensor, tgt_tokens: Tensor = None,
-                 padding_token: int = 0) -> None:
+    def __init__(self, src_tokens: Tensor, padding_token: int,
+                 tgt_tokens: Tensor = None) -> None:
         # source inputs:
         self.src_tokens = src_tokens
         # all source positions are allowed to be attended, both by the
@@ -140,11 +144,12 @@ class MiniBatch:
             self.tgt_input_tokens = tgt_tokens[:, :-1]  # excluding </s> token
             self.tgt_expected_tokens = tgt_tokens[:, 1:]  # excluding <s> token
             self.actual_n_target_tokens = \
-                (self.tgt_input_tokens != padding_token).sum()
+                (self.tgt_expected_tokens != padding_token).sum().item()
             # only target positions up to the current position are allowed to
             # be attended by the decoder, for each position:
             self.tgt_mask = self.build_mask(self.tgt_input_tokens,
                                             padding_token=padding_token)
+    # NOTE: understand why shapes of tgt masks are different from src masks
 
 
 class MiniBatchHandler:
@@ -173,7 +178,7 @@ class MiniBatchHandler:
             self.max_n_tgt_tokens_in_mini_batch,
             len()
         )
-        #
+        # TODO:
         src_tokens = count * self.max_n_src_tokens_in_mini_batch
         tgt_tokens = count * self.max_n_tgt_tokens_in_mini_batch
         return max(src_tokens, tgt_tokens)
@@ -291,8 +296,8 @@ class LossMinimizer:
 
 
 def copy_task_dataset_builder(
-            vocabulary_size: int, mini_batch_size: int, n_mini_batches: int
-        ) -> Generator[MiniBatch, None, None]:
+        vocabulary_size: int, mini_batch_size: int,
+        n_mini_batches: int) -> Generator[MiniBatch, None, None]:
     """
     Build generator yielding dummy samples and labels for a toy source-target
     copy task.
@@ -324,10 +329,8 @@ def copy_task_dataset_builder(
 
 
 def execute_training_epoch(
-            dataset_iterator: Generator[MiniBatch, None, None],
-            model: Module, loss_minimizer: None
-        ) -> float:
-    # TODO: update data type of loss computer
+        dataset_iterator: Generator[MiniBatch, None, None], model: Module,
+        loss_minimizer: LossMinimizer, verbose: bool = True) -> float:
     """
     Execute a single epoch of model training.
     """
@@ -360,13 +363,16 @@ def execute_training_epoch(
         cumulative_loss += loss
         cumulative_n_tokens_done += mini_batch.actual_n_target_tokens
 
-        # displaying loss every 50 mini-batches:
-        if i % 50 == 1:
-            toc = time()
-            print("Mini-batches done: {i} - Loss for the current mini-" +
-                  "batch: {l} - Average time per mini-batch [s]: {t}".format(
-                    i=i, l=round(loss, 4), t=round(((toc-tic) / 50), 1)))
-            tic = time()
+        if verbose:
+
+            # displaying loss every 50 mini-batches:
+            display_every = 50
+            if i % display_every == 0:
+                toc = time()
+                print(("Mini-batches done: {n} - Loss for the current mini-" +
+                        "batch: {l:.4f} - Average speed [tokens/s]: {t:.1f}")
+                        .format(n=(i + 1), l=round(loss, 4),
+                                t=(cumulative_n_tokens_done / (toc-tic))))
 
     # returning the average loss across all the tokens of all the
     # mini-batches:

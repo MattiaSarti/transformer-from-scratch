@@ -15,10 +15,9 @@ def allowed_positions_to_attend(n_positions: int) -> Tensor:
     target position.
     """
     mask_shape = (1, n_positions, n_positions)
-    masks = tril(np_ones(mask_shape), k=0).astype('uint8')
+    masks = tril(np_ones(mask_shape), k=0).astype('bool')
     return from_numpy(masks)
-    # TODO: double-check my mplementation is correct, as I've implemented it
-    # in a more optimized way - but the visual output confirms as well ✓✓
+    # I've implemented it in a more optimized way ✓✓
 
 
 def scaled_dot_product_attention(queries: Tensor, keys: Tensor,
