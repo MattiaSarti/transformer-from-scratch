@@ -1,3 +1,8 @@
+"""
+Embedding and positional encoding layers.
+"""
+
+
 from math import log, sqrt
 
 from torch import arange as torch_arange

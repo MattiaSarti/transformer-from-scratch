@@ -1,3 +1,8 @@
+"""
+Base layers and utilities.
+"""
+
+
 from copy import deepcopy
 
 from torch import Tensor

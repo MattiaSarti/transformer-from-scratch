@@ -1,3 +1,8 @@
+"""
+Layers and utilities related to the attention mechanism.
+"""
+
+
 from math import sqrt
 
 from numpy import ones as np_ones

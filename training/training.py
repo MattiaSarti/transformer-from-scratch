@@ -370,9 +370,12 @@ def execute_training_epoch(
             if i % display_every == 0:
                 toc = time()
                 print(("Mini-batches done: {n} - Loss for the current mini-" +
-                        "batch: {l:.4f} - Average speed [tokens/s]: {t:.1f}")
-                        .format(n=(i + 1), l=loss,
-                                t=(cumulative_n_tokens_done / (toc-tic))))
+                      "batch: {l:.4f} - Average speed [tokens/s]: {t:.1f}")
+                      .format(
+                          n=(i + 1),
+                          l=(loss / mini_batch.actual_n_target_tokens),
+                          t=(cumulative_n_tokens_done / (toc-tic))
+                      ))
 
     # returning the average loss across all the tokens of all the
     # mini-batches:
