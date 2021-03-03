@@ -31,7 +31,7 @@ class Embedder(Module):
 
     def forward(self, x: Tensor) -> Tensor:
         """
-        Forward propagation definition.
+        Forward propagation.
         """
         return self.core_embedding_layer(x) * \
             sqrt(self.token_representation_dimension)
@@ -82,7 +82,7 @@ class PositionalEncoding(Module):
 
     def forward(self, x) -> Tensor:
         """
-        Forward propagation definition.
+        Forward propagation.
         """
         return self.dropout_layer(
             x + self.positional_signals[:, :x.size(1)]  # only over sequence

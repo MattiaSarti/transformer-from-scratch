@@ -114,7 +114,7 @@ class MultiHeadAttention(Module):
     def forward(self, query_tokens: Tensor, key_or_value_tokens: Tensor,
                 mask: Tensor = None) -> Tensor:
         """
-        Forward propagation definition.
+        Forward propagation.
         """
 
         n_mini_batches = query_tokens.size(0)

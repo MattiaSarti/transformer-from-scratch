@@ -45,7 +45,7 @@ class DecoderBlock(Module):
     def forward(self, x: Tensor, src_encoded_tokens: Tensor,
                 src_mask: Tensor, tgt_mask: Tensor) -> Tensor:
         """
-        Forward propagation definition.
+        Forward propagation.
         """
         # self-attention, towards decoder token positions themselves, followed
         # by residual connection and layer normalization:
@@ -90,7 +90,7 @@ class Decoder(Module):
     def forward(self, x: Tensor, src_encoded_tokens: Tensor,
                 src_mask: Tensor, tgt_mask: Tensor) -> Tensor:
         """
-        Forward propagation definition.
+        Forward propagation.
         """
         # forwarding inputs throught all decoder blocks:
         for layer in self.layers:

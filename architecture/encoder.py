@@ -38,7 +38,7 @@ class EncoderBlock(Module):
 
     def forward(self, x: Tensor, mask: Tensor) -> Tensor:
         """
-        Forward propagation definition.
+        Forward propagation.
         """
         # self-attention, towards encoder token positions themselves, followed
         # by residual connection and layer normalization:
@@ -72,7 +72,7 @@ class Encoder(Module):
 
     def forward(self, x: Tensor, mask: Tensor) -> Tensor:
         """
-        Forward propagation definition.
+        Forward propagation.
         """
         # forwarding inputs throught all encoder blocks:
         for layer in self.layers:
