@@ -34,6 +34,9 @@ class LogSoftmax(Module):
         )
 
     def forward(self, x: Tensor) -> Tensor:
+        """
+        Forward propagation definition.
+        """
         return log_softmax(self.linear_layer(x), dim=-1)
 
 
@@ -48,6 +51,9 @@ class LayerNorm(Module):
         self.epsilon = epsilon
 
     def forward(self, x: Tensor) -> Tensor:
+        """
+        Forward propagation definition.
+        """
         mean = x.mean(dim=-1, keepdim=True)
         std = x.std(dim=-1, keepdim=True)
         return ((x - mean) / (std + self.epsilon)) * self.alpha + self.beta
@@ -66,6 +72,9 @@ class ResidualConnectionAndLayerNorm(Module):
         self.dropout_layer = Dropout(p=dropout_prob)
 
     def forward(self, x, base_layer: Module) -> Tensor:
+        """
+        Forward propagation definition.
+        """
         return x + self.dropout_layer(
             base_layer(
                 self.layer_normalization_layer(x)
@@ -98,6 +107,9 @@ class PositionWiseFeedForward(Module):
         self.dropout_layer = Dropout(dropout_prob)
 
     def forward(self, x: Tensor) -> Tensor:
+        """
+        Forward propagation definition.
+        """
         return self.linear_layer_2(
             self.dropout_layer(relu(self.linear_layer_1(x)))
         )

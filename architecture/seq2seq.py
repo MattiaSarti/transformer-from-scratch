@@ -38,7 +38,7 @@ class EncoderDecoder(Module):
     def forward(self, src_tokens: Tensor, tgt_tokens: Tensor, src_mask:
                 Tensor, tgt_mask: Tensor) -> Tensor:
         """
-        Process both masked source and target sequences.
+        Forward propagation definition.
         """
         return self.decode(
             src_encoded_tokens=self.encode(
