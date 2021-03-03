@@ -90,7 +90,7 @@ class MultiHeadAttention(Module):
     def __init__(self, n_attention_heads: int,
                  token_representation_dimension: int,
                  dropout_prob: float) -> None:
-        assert ((token_representation_dimension % n_attention_heads) == 0)
+        assert (token_representation_dimension % n_attention_heads) == 0
         super(MultiHeadAttention, self).__init__()
         # keys and values feature dimensionality:
         self.query_or_key_or_value_dimension = \
