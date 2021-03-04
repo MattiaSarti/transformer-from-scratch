@@ -6,7 +6,8 @@ Decoder architecture.
 from torch import Tensor
 from torch.nn import Module
 
-from .base import get_clones, LayerNorm, ResidualConnectionAndLayerNorm
+from transformer.architecture.base import get_clones, LayerNorm,\
+    ResidualConnectionAndLayerNorm
 
 
 class DecoderBlock(Module):
@@ -42,15 +43,15 @@ class DecoderBlock(Module):
             n_clones=3
         )
 
-    def forward(self, x: Tensor, src_encoded_tokens: Tensor,
+    def forward(self, tgt_features: Tensor, src_encoded_tokens: Tensor,
                 src_mask: Tensor, tgt_mask: Tensor) -> Tensor:
         """
         Forward propagation.
         """
         # self-attention, towards decoder token positions themselves, followed
         # by residual connection and layer normalization:
-        x = self.residual_connection_blocks[0](
-            x,
+        tgt_features = self.residual_connection_blocks[0](
+            tgt_features,
             lambda x: self.self_multi_headed_attention_layer(
                 query_tokens=x,
                 key_or_value_tokens=x,
@@ -59,8 +60,8 @@ class DecoderBlock(Module):
         )
         # source-attention, towards (final representations of) encoder token
         # positions, followed by residual connection and layer normalization:
-        x = self.residual_connection_blocks[1](
-            x,
+        tgt_features = self.residual_connection_blocks[1](
+            tgt_features,
             lambda x: self.source_multi_headed_attention_layer(
                 query_tokens=x,
                 key_or_value_tokens=src_encoded_tokens,
@@ -69,7 +70,7 @@ class DecoderBlock(Module):
         )
         # fully-connected (feed-forward) layer followed by residual connection
         # and layer normalization:
-        return self.residual_connection_blocks[2](x,
+        return self.residual_connection_blocks[2](tgt_features,
                                                   self.fully_connected_layer)
 
 
@@ -87,15 +88,16 @@ class Decoder(Module):
         self.normalization_layer = LayerNorm(base_block.feature_dimension)
         # TODO: see TODO below
 
-    def forward(self, x: Tensor, src_encoded_tokens: Tensor,
+    def forward(self, tgt_features: Tensor, src_encoded_tokens: Tensor,
                 src_mask: Tensor, tgt_mask: Tensor) -> Tensor:
         """
         Forward propagation.
         """
         # forwarding inputs throught all decoder blocks:
         for layer in self.layers:
-            x = layer(x=x, src_encoded_tokens=src_encoded_tokens,
-                      src_mask=src_mask, tgt_mask=tgt_mask)
-        return self.normalization_layer(x)
+            tgt_features = layer(tgt_features=tgt_features,
+                                 src_encoded_tokens=src_encoded_tokens,
+                                 src_mask=src_mask, tgt_mask=tgt_mask)
+        return self.normalization_layer(tgt_features)
         # TODO: understand why this last, additional normalization and why
         # it is not to be masked

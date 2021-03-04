@@ -21,7 +21,7 @@ class DatasetIterator(Iterator):
 
         if self.train:
 
-            .
+            pass
 
         else:
 

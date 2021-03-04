@@ -33,11 +33,11 @@ class LogSoftmax(Module):
             out_features=vocabulary_dimension
         )
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, logits: Tensor) -> Tensor:
         """
         Forward propagation.
         """
-        return log_softmax(self.linear_layer(x), dim=-1)
+        return log_softmax(self.linear_layer(logits), dim=-1)
 
 
 class LayerNorm(Module):
@@ -50,13 +50,14 @@ class LayerNorm(Module):
         self.beta = Parameter(data=torch_zeros(feature_dimension))
         self.epsilon = epsilon
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, features: Tensor) -> Tensor:
         """
         Forward propagation.
         """
-        mean = x.mean(dim=-1, keepdim=True)
-        std = x.std(dim=-1, keepdim=True)
-        return ((x - mean) / (std + self.epsilon)) * self.alpha + self.beta
+        mean = features.mean(dim=-1, keepdim=True)
+        std = features.std(dim=-1, keepdim=True)
+        return ((features - mean) / (std + self.epsilon)) * self.alpha\
+            + self.beta
 
 
 class ResidualConnectionAndLayerNorm(Module):
@@ -71,13 +72,13 @@ class ResidualConnectionAndLayerNorm(Module):
         )
         self.dropout_layer = Dropout(p=dropout_prob)
 
-    def forward(self, x, base_layer: Module) -> Tensor:
+    def forward(self, features, base_layer: Module) -> Tensor:
         """
         Forward propagation.
         """
-        return x + self.dropout_layer(
+        return features + self.dropout_layer(
             base_layer(
-                self.layer_normalization_layer(x)
+                self.layer_normalization_layer(features)
             )
         )
     # TODO: understand why norm is applied first instead of last in their
@@ -106,10 +107,10 @@ class PositionWiseFeedForward(Module):
         )
         self.dropout_layer = Dropout(dropout_prob)
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, features: Tensor) -> Tensor:
         """
         Forward propagation.
         """
         return self.linear_layer_2(
-            self.dropout_layer(relu(self.linear_layer_1(x)))
+            self.dropout_layer(relu(self.linear_layer_1(features)))
         )

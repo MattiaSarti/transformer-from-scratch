@@ -11,7 +11,7 @@ from torch import from_numpy, matmul, Tensor
 from torch.nn import Dropout, Linear, Module
 from torch.nn.functional import softmax
 
-from .base import get_clones
+from transformer.architecture.base import get_clones
 
 
 def allowed_positions_to_attend(n_positions: int) -> Tensor:
@@ -70,7 +70,7 @@ def scaled_dot_product_attention(queries: Tensor, keys: Tensor,
         normalized_attention_weights = dropout_layer(
             normalized_attention_weights)
 
-    # computing each token output feature as a weighted average of the values
+    # computing each token output features as a weighted average of the values
     # of the tokens in all positions, where weights (each representing the
     # attention of a token in a given position to a token in another given
     # position) are normalized attention scores, i.e. attention probabilities
@@ -128,12 +128,12 @@ class MultiHeadAttention(Module):
         # computing queries, keys and values as linear projections of
         # tokens' own features:
         queries, keys, values = [
-            layer(x).view(
+            layer(features).view(
                 n_mini_batches,
                 -1,
                 self.n_attention_heads,
                 self.query_or_key_or_value_dimension
-            ).transpose(dim0=1, dim1=2) for layer, x in zip(
+            ).transpose(dim0=1, dim1=2) for layer, features in zip(
                 self.projection_layers,
                 (query_tokens, key_or_value_tokens, key_or_value_tokens)
             )
@@ -141,17 +141,18 @@ class MultiHeadAttention(Module):
 
         # computing scaled dot-product attention - separately for each
         # head:
-        x, self.normalized_attention_weights = scaled_dot_product_attention(
-            queries=queries,
-            keys=keys,
-            values=values,
-            mask=mask,
-            dropout_layer=self.dropout_layer
-        )
+        features, self.normalized_attention_weights =\
+            scaled_dot_product_attention(
+                queries=queries,
+                keys=keys,
+                values=values,
+                mask=mask,
+                dropout_layer=self.dropout_layer
+            )
 
         # concatenating results from all different heads along feature
         # dimension, after adjusting tensor shape properly:
-        x = x.transpose(dim0=1, dim1=2).contiguous()\
+        features = features.transpose(dim0=1, dim1=2).contiguous()\
             .view(
                 n_mini_batches,
                 -1,
@@ -161,4 +162,4 @@ class MultiHeadAttention(Module):
 
         # final fully-connected linear combination of information from
         # different heads:
-        return self.projection_layers[-1](x)
+        return self.projection_layers[-1](features)

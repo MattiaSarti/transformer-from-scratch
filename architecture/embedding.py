@@ -29,11 +29,11 @@ class Embedder(Module):
         )
         self.token_representation_dimension = token_representation_dimension
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, token_ids: Tensor) -> Tensor:
         """
         Forward propagation.
         """
-        return self.core_embedding_layer(x) * \
+        return self.core_embedding_layer(token_ids) * \
             sqrt(self.token_representation_dimension)
 
 
@@ -80,10 +80,12 @@ class PositionalEncoding(Module):
         self.register_buffer('positional_signals', positional_signals)
         # TODO: understand if redundant with requires_grad=False
 
-    def forward(self, x) -> Tensor:
+    def forward(self, token_embeddings) -> Tensor:
         """
         Forward propagation.
         """
         return self.dropout_layer(
-            x + self.positional_signals[:, :x.size(1)]  # only over sequence
+            token_embeddings +
+            self.positional_signals[:, :token_embeddings.size(1)]
+            # positional signal added only over sequence
         )

@@ -6,7 +6,8 @@ Encoder architecture.
 from torch import Tensor
 from torch.nn import Module
 
-from .base import get_clones, LayerNorm, ResidualConnectionAndLayerNorm
+from transformer.architecture.base import get_clones, LayerNorm,\
+    ResidualConnectionAndLayerNorm
 
 
 class EncoderBlock(Module):
@@ -36,14 +37,14 @@ class EncoderBlock(Module):
             n_clones=2
         )
 
-    def forward(self, x: Tensor, mask: Tensor) -> Tensor:
+    def forward(self, src_features: Tensor, mask: Tensor) -> Tensor:
         """
         Forward propagation.
         """
         # self-attention, towards encoder token positions themselves, followed
         # by residual connection and layer normalization:
-        x = self.residual_connection_blocks[0](
-            x,
+        src_features = self.residual_connection_blocks[0](
+            src_features,
             lambda x: self.self_multi_headed_attention_layer(
                 query_tokens=x,
                 key_or_value_tokens=x,
@@ -52,7 +53,7 @@ class EncoderBlock(Module):
         )
         # fully-connected (feed-forward) layer followed by residual connection
         # and layer normalization:
-        return self.residual_connection_blocks[1](x,
+        return self.residual_connection_blocks[1](src_features,
                                                   self.fully_connected_layer)
 
 
@@ -70,13 +71,13 @@ class Encoder(Module):
         self.normalization_layer = LayerNorm(base_block.feature_dimension)
         # TODO: see TODO below
 
-    def forward(self, x: Tensor, mask: Tensor) -> Tensor:
+    def forward(self, src_features: Tensor, mask: Tensor) -> Tensor:
         """
         Forward propagation.
         """
         # forwarding inputs throught all encoder blocks:
         for layer in self.layers:
-            x = layer(x=x, mask=mask)
-        return self.normalization_layer(x)
+            src_features = layer(src_features=src_features, mask=mask)
+        return self.normalization_layer(src_features)
         # TODO: understand why this last, additional normalization and why
         # it is not to be masked

@@ -9,15 +9,16 @@ from torch.nn import Module, Sequential
 from torch.nn.init import xavier_uniform_
 from torch.optim import Adam
 
-from .architecture.attention import allowed_positions_to_attend,\
+from transformer.architecture.attention import allowed_positions_to_attend,\
     MultiHeadAttention
-from .architecture.base import LogSoftmax, PositionWiseFeedForward
-from .architecture.embedding import Embedder, PositionalEncoding
-from .architecture.encoder import Encoder, EncoderBlock
-from .architecture.decoder import Decoder, DecoderBlock
-from .architecture.seq2seq import EncoderDecoder, seq2seq_building_blocks
+from transformer.architecture.base import LogSoftmax, PositionWiseFeedForward
+from transformer.architecture.embedding import Embedder, PositionalEncoding
+from transformer.architecture.encoder import Encoder, EncoderBlock
+from transformer.architecture.decoder import Decoder, DecoderBlock
+from transformer.architecture.seq2seq import EncoderDecoder,\
+    seq2seq_building_blocks
 
-from .training.training import copy_task_dataset_builder,\
+from transformer.training.training import copy_task_dataset_builder,\
     execute_training_epoch, LabelSmoothedLoss, LossMinimizer, OptimizerHandler
 
 
