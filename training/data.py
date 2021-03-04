@@ -29,7 +29,7 @@ class DatasetIterator(Iterator):
             # for each mini-batch untill all the dataset is covered:
             for mini_batch in torchtext_batch(self.data(), self.batch_size,
                                               self.batch_size_fn):
-                # appending 
+                # appending ...
                 self.batches.append(
                     sorted(mini_batch, key=self.sort_key)
                 )
@@ -50,7 +50,6 @@ class Tokenizer:
         self.eos_token = "</s>"  # end of sequence
         self.unk_token = "<unk>"  # unknown
         self.padding_token = "<blank>"
-        
 
     def tokenize_src(self, text: str) -> List[str]:
         "Tokenize source language text."

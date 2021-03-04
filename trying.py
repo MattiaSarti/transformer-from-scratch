@@ -8,7 +8,6 @@ from transformer import Transformer
 
 if __name__ == '__main__':
 
-
     model = Transformer(
         src_vocabulary_dimension=10,
         tgt_vocabulary_dimension=10,

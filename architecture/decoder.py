@@ -3,11 +3,23 @@ Decoder architecture.
 """
 
 
+from collections import namedtuple
+
 from torch import Tensor
 from torch.nn import Module
 
 from transformer.architecture.base import get_clones, LayerNorm,\
     ResidualConnectionAndLayerNorm
+
+
+decoder_block_building_blocks = namedtuple(
+    'DecoderBuildingBlocks',
+    [
+        ('self_multi_headed_attention_layer', Module),
+        ('source_multi_headed_attention_layer', Module),
+        ('fully_connected_layer', Module)
+    ]
+)
 
 
 class DecoderBlock(Module):
@@ -23,18 +35,15 @@ class DecoderBlock(Module):
     - residual connection;
     - layer-normalization layer.
     """
-    def __init__(self, feature_dimension: int,
-                 self_multi_headed_attention_layer: Module,
-                 source_multi_headed_attention_layer: Module,
-                 fully_connected_layer: Module, dropout_prob: float)\
-            -> None:
+    def __init__(self, building_blocks: decoder_block_building_blocks,
+                 feature_dimension: int, dropout_prob: float) -> None:
         super(DecoderBlock, self).__init__()
         self.feature_dimension = feature_dimension
         self.self_multi_headed_attention_layer = \
-            self_multi_headed_attention_layer
+            building_blocks.self_multi_headed_attention_layer
         self.source_multi_headed_attention_layer = \
-            source_multi_headed_attention_layer
-        self.fully_connected_layer = fully_connected_layer
+            building_blocks.source_multi_headed_attention_layer
+        self.fully_connected_layer = building_blocks.fully_connected_layer
         self.residual_connection_blocks = get_clones(
             module_to_be_cloned=ResidualConnectionAndLayerNorm(
                 feature_dimension=feature_dimension,
@@ -81,10 +90,8 @@ class Decoder(Module):
     """
     def __init__(self, base_block, n_clones) -> None:
         super(Decoder, self).__init__()
-        self.layers = get_clones(
-            module_to_be_cloned=base_block,
-            n_clones=n_clones
-        )
+        self.layer_blocks = get_clones(module_to_be_cloned=base_block,
+                                       n_clones=n_clones)
         self.normalization_layer = LayerNorm(base_block.feature_dimension)
         # TODO: see TODO below
 
@@ -94,10 +101,10 @@ class Decoder(Module):
         Forward propagation.
         """
         # forwarding inputs throught all decoder blocks:
-        for layer in self.layers:
-            tgt_features = layer(tgt_features=tgt_features,
-                                 src_encoded_tokens=src_encoded_tokens,
-                                 src_mask=src_mask, tgt_mask=tgt_mask)
+        for layer_block in self.layer_blocks:
+            tgt_features = layer_block(tgt_features=tgt_features,
+                                       src_encoded_tokens=src_encoded_tokens,
+                                       src_mask=src_mask, tgt_mask=tgt_mask)
         return self.normalization_layer(tgt_features)
         # TODO: understand why this last, additional normalization and why
         # it is not to be masked

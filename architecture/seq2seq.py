@@ -10,7 +10,7 @@ from torch.nn import Module
 
 
 seq2seq_building_blocks = namedtuple(
-    'BuildingBlocks',
+    'Seq2SeqBuildingBlocks',
     [
         ('encoder', Module),
         ('decoder', Module),

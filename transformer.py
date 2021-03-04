@@ -13,8 +13,10 @@ from transformer.architecture.attention import allowed_positions_to_attend,\
     MultiHeadAttention
 from transformer.architecture.base import LogSoftmax, PositionWiseFeedForward
 from transformer.architecture.embedding import Embedder, PositionalEncoding
-from transformer.architecture.encoder import Encoder, EncoderBlock
-from transformer.architecture.decoder import Decoder, DecoderBlock
+from transformer.architecture.encoder import Encoder, EncoderBlock,\
+    encoder_block_building_blocks
+from transformer.architecture.decoder import Decoder, DecoderBlock,\
+    decoder_block_building_blocks
 from transformer.architecture.seq2seq import EncoderDecoder,\
     seq2seq_building_blocks
 
@@ -93,7 +95,12 @@ class Transformer:
 
         # building the architecture:
 
-        # instantiating (some of) the base layers:
+        # instantiating (some of) the base layers/blocks of the architecture:
+        positional_encoding_layer = PositionalEncoding(
+            token_representation_dimension=representation_dimension,
+            dropout_prob=dropout_prob,
+            max_sequence_length=max_sequence_length
+        )
         multi_headed_attention_later = MultiHeadAttention(
             n_attention_heads=n_attention_heads,
             token_representation_dimension=representation_dimension,
@@ -104,59 +111,65 @@ class Transformer:
             feedforward_dimension=feedforward_dimension,
             dropout_prob=dropout_prob
         )
-        positional_encoding_layer = PositionalEncoding(
+        log_softmax_layer = LogSoftmax(
             token_representation_dimension=representation_dimension,
-            dropout_prob=dropout_prob,
-            max_sequence_length=max_sequence_length
+            vocabulary_dimension=tgt_vocabulary_dimension
         )
 
-        # instantiating the whole seq2seq encoder-decoder architecture:
-        building_blocks = seq2seq_building_blocks(
-            encoder=Encoder(
-                base_block=EncoderBlock(
-                    feature_dimension=representation_dimension,
-                    self_multi_headed_attention_layer=deepcopy(
-                        multi_headed_attention_later),
-                    fully_connected_layer=deepcopy(feedforward_layer),
-                    dropout_prob=dropout_prob
-                ),
-                n_clones=n_encoder_blocks
+        # composing some of the base layers to build the more complex ones:
+        src_embedder = Sequential(
+            Embedder(
+                token_representation_dimension=representation_dimension,
+                vocabulary_dimension=src_vocabulary_dimension
             ),
-            decoder=Decoder(
-                base_block=DecoderBlock(
-                    feature_dimension=representation_dimension,
-                    self_multi_headed_attention_layer=deepcopy(
-                        multi_headed_attention_later),
-                    source_multi_headed_attention_layer=deepcopy(
-                        multi_headed_attention_later),
-                    fully_connected_layer=deepcopy(feedforward_layer),
-                    dropout_prob=dropout_prob
-                ),
-                n_clones=n_encoder_blocks
-            ),
-            src_embedder=Sequential(
-                Embedder(
-                    token_representation_dimension=representation_dimension,
-                    vocabulary_dimension=src_vocabulary_dimension
-                ),
-                deepcopy(positional_encoding_layer)
-            ),
-            tgt_embedder=Sequential(
-                Embedder(
-                    token_representation_dimension=representation_dimension,
-                    vocabulary_dimension=tgt_vocabulary_dimension
-                ),
-                deepcopy(positional_encoding_layer)
-            ),
-            log_softmax_layer=LogSoftmax(
+            deepcopy(positional_encoding_layer)
+        )
+        tgt_embedder = Sequential(
+            Embedder(
                 token_representation_dimension=representation_dimension,
                 vocabulary_dimension=tgt_vocabulary_dimension
-            )
+            ),
+            deepcopy(positional_encoding_layer)
+        )
+        base_encoder_block = EncoderBlock(
+            building_blocks=encoder_block_building_blocks(
+                self_multi_headed_attention_layer=deepcopy(
+                    multi_headed_attention_later),
+                fully_connected_layer=deepcopy(feedforward_layer),
+            ),
+            feature_dimension=representation_dimension,
+            dropout_prob=dropout_prob
+        )
+        encoder = Encoder(
+            base_block=base_encoder_block,
+            n_clones=n_encoder_blocks
+        )
+        base_decoder_block = DecoderBlock(
+            building_blocks=decoder_block_building_blocks(
+                self_multi_headed_attention_layer=deepcopy(
+                    multi_headed_attention_later),
+                source_multi_headed_attention_layer=deepcopy(
+                    multi_headed_attention_later),
+                fully_connected_layer=deepcopy(feedforward_layer)
+            ),
+            feature_dimension=representation_dimension,
+            dropout_prob=dropout_prob
+        )
+        decoder = Decoder(
+            base_block=base_decoder_block,
+            n_clones=n_encoder_blocks
         )
 
-        # composing the base layers to build the whole model architecture:
+        # instantiating the whole seq2seq encoder-decoder model:
+        building_blocks = seq2seq_building_blocks(
+            encoder=encoder,
+            decoder=decoder,
+            src_embedder=src_embedder,
+            tgt_embedder=tgt_embedder,
+            log_softmax_layer=log_softmax_layer
+        )
         model = EncoderDecoder(
-            building_blocks=building_blocks 
+            building_blocks=building_blocks
         )
 
         # initializing the parameters:

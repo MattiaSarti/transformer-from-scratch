@@ -3,11 +3,22 @@ Encoder architecture.
 """
 
 
+from collections import namedtuple
+
 from torch import Tensor
 from torch.nn import Module
 
 from transformer.architecture.base import get_clones, LayerNorm,\
     ResidualConnectionAndLayerNorm
+
+
+encoder_block_building_blocks = namedtuple(
+    'EncoderBuildingBlocks',
+    [
+        ('self_multi_headed_attention_layer', Module),
+        ('fully_connected_layer', Module)
+    ]
+)
 
 
 class EncoderBlock(Module):
@@ -20,15 +31,13 @@ class EncoderBlock(Module):
     - residual connection;
     - layer-normalization layer.
     """
-    def __init__(self, feature_dimension: int,
-                 self_multi_headed_attention_layer: Module,
-                 fully_connected_layer: Module,
-                 dropout_prob: float) -> None:
+    def __init__(self, building_blocks: encoder_block_building_blocks,
+                 feature_dimension: int, dropout_prob: float) -> None:
         super(EncoderBlock, self).__init__()
         self.feature_dimension = feature_dimension
         self.self_multi_headed_attention_layer = \
-            self_multi_headed_attention_layer
-        self.fully_connected_layer = fully_connected_layer
+            building_blocks.self_multi_headed_attention_layer
+        self.fully_connected_layer = building_blocks.fully_connected_layer
         self.residual_connection_blocks = get_clones(
             module_to_be_cloned=ResidualConnectionAndLayerNorm(
                 feature_dimension=feature_dimension,
@@ -64,10 +73,8 @@ class Encoder(Module):
     """
     def __init__(self, base_block, n_clones) -> None:
         super(Encoder, self).__init__()
-        self.layers = get_clones(
-            module_to_be_cloned=base_block,
-            n_clones=n_clones
-        )
+        self.layer_blocks = get_clones(module_to_be_cloned=base_block,
+                                       n_clones=n_clones)
         self.normalization_layer = LayerNorm(base_block.feature_dimension)
         # TODO: see TODO below
 
@@ -76,8 +83,8 @@ class Encoder(Module):
         Forward propagation.
         """
         # forwarding inputs throught all encoder blocks:
-        for layer in self.layers:
-            src_features = layer(src_features=src_features, mask=mask)
+        for layer_block in self.layer_blocks:
+            src_features = layer_block(src_features=src_features, mask=mask)
         return self.normalization_layer(src_features)
         # TODO: understand why this last, additional normalization and why
         # it is not to be masked
