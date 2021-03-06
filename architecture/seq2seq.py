@@ -9,7 +9,7 @@ from torch import Tensor
 from torch.nn import Module
 
 
-seq2seq_building_blocks = NamedTuple(
+Seq2SeqBuildingBlocks = NamedTuple(
     'Seq2SeqBuildingBlocks',
     [
         ('encoder', Module),
@@ -26,7 +26,7 @@ class EncoderDecoder(Module):
     Base architecture for encoder-decoder sequence-to-sequence Transformer
     models.
     """
-    def __init__(self, building_blocks: seq2seq_building_blocks) -> None:
+    def __init__(self, building_blocks: Seq2SeqBuildingBlocks) -> None:
 
         super(EncoderDecoder, self).__init__()
         self.encoder = building_blocks.encoder

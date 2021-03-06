@@ -12,7 +12,7 @@ from transformer.architecture.base import get_clones, LayerNorm,\
     ResidualConnectionAndLayerNorm
 
 
-encoder_block_building_blocks = NamedTuple(
+EncoderBlockBuildingBlocks = NamedTuple(
     'EncoderBuildingBlocks',
     [
         ('self_multi_headed_attention_layer', Module),
@@ -31,7 +31,7 @@ class EncoderBlock(Module):
     - residual connection;
     - layer-normalization layer.
     """
-    def __init__(self, building_blocks: encoder_block_building_blocks,
+    def __init__(self, building_blocks: EncoderBlockBuildingBlocks,
                  feature_dimension: int, dropout_prob: float) -> None:
         super(EncoderBlock, self).__init__()
         self.feature_dimension = feature_dimension

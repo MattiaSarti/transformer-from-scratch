@@ -14,11 +14,11 @@ from transformer.architecture.attention import allowed_positions_to_attend,\
 from transformer.architecture.base import LogSoftmax, PositionWiseFeedForward
 from transformer.architecture.embedding import Embedder, PositionalEncoding
 from transformer.architecture.encoder import Encoder, EncoderBlock,\
-    encoder_block_building_blocks
+    EncoderBlockBuildingBlocks
 from transformer.architecture.decoder import Decoder, DecoderBlock,\
-    decoder_block_building_blocks
+    DecoderBlockBuildingBlocks
 from transformer.architecture.seq2seq import EncoderDecoder,\
-    seq2seq_building_blocks
+    Seq2SeqBuildingBlocks
 
 from transformer.training.training import copy_task_dataset_builder,\
     execute_training_epoch, LabelSmoothedLoss, LossMinimizer, OptimizerHandler
@@ -132,7 +132,7 @@ class Transformer:
             deepcopy(positional_encoding_layer)
         )
         base_encoder_block = EncoderBlock(
-            building_blocks=encoder_block_building_blocks(
+            building_blocks=EncoderBlockBuildingBlocks(
                 self_multi_headed_attention_layer=deepcopy(
                     multi_headed_attention_later),
                 fully_connected_layer=deepcopy(feedforward_layer),
@@ -145,7 +145,7 @@ class Transformer:
             n_clones=n_encoder_blocks
         )
         base_decoder_block = DecoderBlock(
-            building_blocks=decoder_block_building_blocks(
+            building_blocks=DecoderBlockBuildingBlocks(
                 self_multi_headed_attention_layer=deepcopy(
                     multi_headed_attention_later),
                 source_multi_headed_attention_layer=deepcopy(
@@ -161,7 +161,7 @@ class Transformer:
         )
 
         # instantiating the whole seq2seq encoder-decoder model:
-        building_blocks = seq2seq_building_blocks(
+        building_blocks = Seq2SeqBuildingBlocks(
             encoder=encoder,
             decoder=decoder,
             src_embedder=src_embedder,
