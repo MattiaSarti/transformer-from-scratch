@@ -22,8 +22,8 @@ class LabelSmoothedLoss(Module):
     each target token id into smoothed probability distributions before
     feeding them, toghether with the model output, to the KL-divergence
     loss computation instead of one-hot target probability distributions.
-    Inputs predictions and lables are assumed as flattened along sampples
-    (sequences), i.e. the input has shape: (# outputs, vocabulary size),
+    Inputs predictions and lables are assumed as flattened along samples
+    (sequences), thus labels have shape: (# outputs, vocabulary size),
     fusing together outputs from both the same and different sequences,
     without considering positions. Label smoothing penalizes the model
     when outputting too "confident" predictions, when predicting a too high
@@ -47,14 +47,18 @@ class LabelSmoothedLoss(Module):
         self.redistributed_probability_each = smoothing_factor /\
             (softmax_dimension - 2)
         # loss criterion - requiring inputs as log-probabilities:
-        self.loss_criterion = KLDivLoss(reduction='sum')
+        self.loss_criterion = KLDivLoss(reduction='sum', log_target=False)
+        # predictions expected as log-probabilities, labels as probabilities
 
         # initialization of label distributions:
         self.smoothed_tgt_distributions = None
         # TODO: understand if just to inspect label distributions - not used
 
-    def forward(self, x: Tensor, tgt_tokens: Tensor) -> Tensor:
-
+    def forward(self, predicted_log_probabilities: Tensor, tgt_tokens:
+                Tensor) -> Tensor:
+        """
+        Forward propagation.
+        """
         # NOTE: assertions are avoided to speed up training:
         # assert x.size(1) == self.softmax_dimension
 
@@ -64,7 +68,8 @@ class LabelSmoothedLoss(Module):
         # vocabulaty except the padding token and the target token, which does
         # not have to receive a re-distribution of the original target one-hot
         # unitary probability distribution:
-        smoothed_tgt_distributions = x.detach().clone()
+        smoothed_tgt_distributions = predicted_log_probabilities.detach()\
+            .clone()
         # NOTE: necessary to make the smoothed label distributions not require
         # backpropagation (i.e. gradient computations and weight update)
         smoothed_tgt_distributions.fill_(self.redistributed_probability_each)
@@ -107,11 +112,12 @@ class LabelSmoothedLoss(Module):
         # returning loss value by considering the smoothed label distributions
         # instead of the one-hot labels as targets:
         return self.loss_criterion(
-            input=x,
+            input=predicted_log_probabilities,
             target=smoothed_tgt_distributions
         )
 
 
+# TODO: this should not be a class, it just stores data after processing them
 class MiniBatch:
     """
     Mini-batch of samples.
@@ -155,6 +161,7 @@ class MiniBatch:
 
 class MiniBatchHandler:
     """
+    TODO
     """
     def __init__(self, max_n_src_tokens_in_mini_batch: int,
                  max_n_tgt_tokens_in_mini_batch: int) -> None:
@@ -162,6 +169,9 @@ class MiniBatchHandler:
         self.max_n_tgt_tokens_in_mini_batch = max_n_tgt_tokens_in_mini_batch
 
     def get_current_mini_batch_size(self, new, count: int):
+        """
+        TODO
+        """
         # TODO: add data type & understand why they add an unused, additional
         # argument called 'sofar'
 
@@ -250,23 +260,26 @@ class LossMinimizer:
         self.criterion = criterion
         self.optimizer_handler = optimizer_handler
 
-    def __call__(self, x: Tensor, y: Tensor, n_mini_batch_tokens: int)\
-            -> float:
+    def __call__(self, log_probabilities: Tensor, labels: Tensor,
+                 n_mini_batch_tokens: int) -> float:
         """
-        Compute loss from logits, and, if an optimizer handler is passed,
-        backpropagate gradient and update weights to minimize loss.
+        Compute loss from log-probabilities, and, if an optimizer handler is
+        # passed, backpropagate gradient and update weights to minimize loss.
         """
         # TODO: check returned data type - float or Tensor?
 
         # computing final softmax log-probabilities:
-        x = self.final_log_softmax_layer(x)
+        log_probabilities = self.final_log_softmax_layer(log_probabilities)
         # computing loss value, flattening all outputs of all sequences along
         # a unique dimension (with no changes on the computational graphs but
         # more efficiently for the subsequent computations, using 2D arrays),
         # i.e. sequences are flattened:
         loss = self.criterion(
-            x=x.contiguous().view((-1, x.size(-1))),  # 3D -> 2D
-            tgt_tokens=y.contiguous().view(-1)  # 2D -> 1D
+            predicted_log_probabilities=log_probabilities.contiguous()\
+                .view(
+                    (-1, log_probabilities.size(-1))
+                ),  # 3D -> 2D
+            tgt_tokens=labels.contiguous().view(-1)  # 2D -> 1D
         ) / n_mini_batch_tokens
         # this normalization of the loss, which is returned by the criterion
         # as the sum of all the single loss values, by the number of tokens
@@ -371,7 +384,7 @@ def execute_training_epoch(
             if i % display_every == 0:
                 toc = time()
                 print(("Mini-batches done: {n} - Loss for the current mini-" +
-                      "batch: {l:.4f} - Average speed [tokens/s]: {t:.1f}")
+                       "batch: {l:.4f} - Average speed [tokens/s]: {t:.1f}")
                       .format(
                           n=(i + 1),
                           l=(loss / mini_batch.actual_n_target_tokens),
