@@ -332,15 +332,15 @@ class Transformer:
                 # dimensionality (samples, features) to dimensionality
                 # (samples):
                 next_tokens = torch_max(next_token_log_probabilities,
-                                        dim=1).indices
+                                        dim=1).indices[0]
 
                 # concatenating the newly predicted tokens to the sequences of
                 # already predicted tokens:
                 cumulative_tgt_sequences = torch_cat(
                     (
                         cumulative_tgt_sequences,
-                        torch_ones(1, 1).type_as(src_sequences)
-                                        .fill_(next_tokens)
+                        torch_ones((1, 1)).type_as(src_sequences)
+                                          .fill_(next_tokens)
                     ),
                     dim=1
                 )

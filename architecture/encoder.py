@@ -3,7 +3,7 @@ Encoder architecture.
 """
 
 
-from collections import namedtuple
+from typing import NamedTuple
 
 from torch import Tensor
 from torch.nn import Module
@@ -12,7 +12,7 @@ from transformer.architecture.base import get_clones, LayerNorm,\
     ResidualConnectionAndLayerNorm
 
 
-encoder_block_building_blocks = namedtuple(
+encoder_block_building_blocks = NamedTuple(
     'EncoderBuildingBlocks',
     [
         ('self_multi_headed_attention_layer', Module),

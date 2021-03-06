@@ -3,7 +3,7 @@ Decoder architecture.
 """
 
 
-from collections import namedtuple
+from typing import NamedTuple
 
 from torch import Tensor
 from torch.nn import Module
@@ -12,7 +12,7 @@ from transformer.architecture.base import get_clones, LayerNorm,\
     ResidualConnectionAndLayerNorm
 
 
-decoder_block_building_blocks = namedtuple(
+decoder_block_building_blocks = NamedTuple(
     'DecoderBuildingBlocks',
     [
         ('self_multi_headed_attention_layer', Module),

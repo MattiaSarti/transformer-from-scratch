@@ -46,8 +46,8 @@ class LayerNorm(Module):
     """
     def __init__(self, feature_dimension: int, epsilon: float = 1e-6) -> None:
         super(LayerNorm, self).__init__()
-        self.alpha = Parameter(data=torch_ones(feature_dimension))
-        self.beta = Parameter(data=torch_zeros(feature_dimension))
+        self.alpha = Parameter(data=torch_ones((feature_dimension)))
+        self.beta = Parameter(data=torch_zeros((feature_dimension)))
         self.epsilon = epsilon
 
     def forward(self, features: Tensor) -> Tensor:

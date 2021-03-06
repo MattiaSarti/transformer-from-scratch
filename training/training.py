@@ -12,7 +12,7 @@ from torch import from_numpy, nonzero, Tensor
 from torch.nn import KLDivLoss, Module
 from torch.optim import Adam
 
-from architecture.attention import allowed_positions_to_attend
+from transformer.architecture.attention import allowed_positions_to_attend
 
 
 class LabelSmoothedLoss(Module):

@@ -3,13 +3,13 @@ Sequence-to-sequence encoder-decoder architecture scaffold.
 """
 
 
-from collections import namedtuple
+from typing import NamedTuple
 
 from torch import Tensor
 from torch.nn import Module
 
 
-seq2seq_building_blocks = namedtuple(
+seq2seq_building_blocks = NamedTuple(
     'Seq2SeqBuildingBlocks',
     [
         ('encoder', Module),
@@ -56,7 +56,7 @@ class EncoderDecoder(Module):
         encoder representations (i.e. the outputs of the last encoder layer).
         """
         return self.encoder(
-            x=self.src_embedder(src_tokens),
+            src_features=self.src_embedder(src_tokens),
             mask=src_mask
         )
 
@@ -69,7 +69,7 @@ class EncoderDecoder(Module):
         decoder layer) and their masks, predicting the next target token.
         """
         return self.decoder(
-            x=self.tgt_embedder(tgt_tokens),
+            tgt_features=self.tgt_embedder(tgt_tokens),
             src_encoded_tokens=src_encoded_tokens,
             src_mask=src_mask,
             tgt_mask=tgt_mask

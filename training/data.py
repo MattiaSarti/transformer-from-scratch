@@ -113,3 +113,17 @@ tgt_data_handler.build_vocsb(
     training_samples.trg,
     min_freq=min_vocabulary_counts
 )
+
+
+# TODO: set seed for deterministic, reproducible results:
+# def seed_worker(worker_id):
+#     worker_seed = torch.initial_seed() % 2**32
+#     numpy.random.seed(worker_seed)
+#     random.seed(worker_seed)
+
+# DataLoader(
+#     train_dataset,
+#     batch_size=batch_size,
+#     num_workers=num_workers,
+#     worker_init_fn=seed_worker
+# )
