@@ -275,10 +275,9 @@ class LossMinimizer:
         # more efficiently for the subsequent computations, using 2D arrays),
         # i.e. sequences are flattened:
         loss = self.criterion(
-            predicted_log_probabilities=log_probabilities.contiguous()\
-                .view(
-                    (-1, log_probabilities.size(-1))
-                ),  # 3D -> 2D
+            predicted_log_probabilities=log_probabilities.contiguous().view(
+                (-1, log_probabilities.size(-1))
+            ),  # 3D -> 2D
             tgt_tokens=labels.contiguous().view(-1)  # 2D -> 1D
         ) / n_mini_batch_tokens
         # this normalization of the loss, which is returned by the criterion
