@@ -25,8 +25,9 @@ from transformer.architecture.decoder import Decoder, DecoderBlock,\
 from transformer.architecture.seq2seq import EncoderDecoder,\
     Seq2SeqBuildingBlocks
 
-from transformer.training.training import copy_task_dataset_builder,\
-    execute_training_epoch, LabelSmoothedLoss, LossMinimizer, OptimizerHandler
+from transformer.training_and_inference.training import\
+    copy_task_dataset_builder, execute_training_epoch, LabelSmoothedLoss,\
+    LossMinimizer, OptimizerHandler
 
 
 class HyperparameterDict(TypedDict):

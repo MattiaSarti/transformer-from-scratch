@@ -8,113 +8,13 @@ from typing import Generator
 
 from numpy import int64 as numpy_int64
 from numpy.random import randint
-from torch import from_numpy, nonzero, Tensor
-from torch.nn import KLDivLoss, Module
-from torch.optim import Adam
+from torch import from_numpy, Tensor
+from torch.nn import Module
+from torch.nn.parallel import replicate as parallel_replicate
 
 from transformer.architecture.attention import allowed_positions_to_attend
-
-
-class LabelSmoothedLoss(Module):
-    """
-    Layer to be stacked on top of the model of interest during training,
-    carrying out label smoothing first and then loss computation, turning
-    each target token id into smoothed probability distributions before
-    feeding them, toghether with the model output, to the KL-divergence
-    loss computation instead of one-hot target probability distributions.
-    Inputs predictions and lables are assumed as flattened along samples
-    (sequences), thus labels have shape: (# outputs, vocabulary size),
-    fusing together outputs from both the same and different sequences,
-    without considering positions. Label smoothing penalizes the model
-    when outputting too "confident" predictions, when predicting a too high
-    probability on the most likely token: the higher this probability over
-    a reasonable value (for which the loss reaches its minimum), the higher
-    the loss becomes, even if less gently than if this probability were lower
-    than the value yielding the loss minimum. Label smoothing aims at avoiding
-    overfitting, it is a form of regularization.
-    """
-    def __init__(self, softmax_dimension: int, padding_token: int,
-                 smoothing_factor: float) -> None:
-        super(LabelSmoothedLoss, self).__init__()
-        self.softmax_dimension = softmax_dimension
-        self.padding_token = padding_token
-        # factor of which:
-        self.smoothing_factor = smoothing_factor
-        # factor of which:
-        self.confidence = 1.0 - smoothing_factor
-        # fraction of redistributed probability assigned to each one of the
-        # non-target tokens in the vocabulary (padding token excluded)
-        self.redistributed_probability_each = smoothing_factor /\
-            (softmax_dimension - 2)
-        # loss criterion - requiring inputs as log-probabilities:
-        self.loss_criterion = KLDivLoss(reduction='sum', log_target=False)
-        # predictions expected as log-probabilities, labels as probabilities
-
-        # initialization of label distributions:
-        self.smoothed_tgt_distributions = None
-        # TODO: understand if just to inspect label distributions - not used
-
-    def forward(self, predicted_log_probabilities: Tensor, tgt_tokens:
-                Tensor) -> Tensor:
-        """
-        Forward propagation.
-        """
-        # NOTE: assertions are avoided to speed up training:
-        # assert x.size(1) == self.softmax_dimension
-
-        # creating a tensor with the same shape as the input one but filled
-        # with constant values, evenly distributed over all vocabulary tokens,
-        # equal to the smoothing factor divided by the number of tokens in the
-        # vocabulaty except the padding token and the target token, which does
-        # not have to receive a re-distribution of the original target one-hot
-        # unitary probability distribution:
-        smoothed_tgt_distributions = predicted_log_probabilities.detach()\
-            .clone()
-        # NOTE: necessary to make the smoothed label distributions not require
-        # backpropagation (i.e. gradient computations and weight update)
-        smoothed_tgt_distributions.fill_(self.redistributed_probability_each)
-
-        # NOTE: avoided the original, redundant division, it can be done just
-        # once during initialization to speed up training:
-        # smoothed_tgt_distributions.fill_(self.smoothing_factor /
-        #                                 (self.softmax_dimension - 2))
-
-        # filling the probability values of the target tokens in the smoothed
-        # distributions with the remaining probability portion of the
-        # originally unitary, target one after its partial redistribution over
-        # the other tokens of the vocabulary:
-        smoothed_tgt_distributions.scatter_(
-            dim=1,
-            index=tgt_tokens.unsqueeze(dim=1),  # 1D -> 2D
-            value=self.confidence
-        )
-
-        # resetting the padding token probability to 0, as the smoothed
-        # probability amount is redistributed only on meaningful tokens and
-        # not on the padding one when smoothing labels:
-        smoothed_tgt_distributions[:, self.padding_token] = 0
-
-        # for outputs whose target corresponds to the padding token:
-        mask_indices = nonzero(tgt_tokens == self.padding_token)
-        if mask_indices.dim() > 0:  # TODO: '.dim()' is always 2
-            # not considering predictions over samples where the target token
-            # is the padding one by setting all the probability values over
-            # the vocabulary of those predictions to 0:
-            smoothed_tgt_distributions.index_fill_(
-                dim=0,
-                index=mask_indices.squeeze(),  # TODO: '.squeeze()' redundant?
-                value=0.0
-            )
-
-        # TODO: understand if just to inspect label distributions - not used
-        self.smoothed_tgt_distributions = smoothed_tgt_distributions
-
-        # returning loss value by considering the smoothed label distributions
-        # instead of the one-hot labels as targets:
-        return self.loss_criterion(
-            input=predicted_log_probabilities,
-            target=smoothed_tgt_distributions
-        )
+from transformer.training_and_inference.loss import LabelSmoothedLoss
+from transformer.training_and_inference.optimizer import OptimizerHandler
 
 
 # TODO: this should not be a class, it just stores data after processing them
@@ -195,60 +95,6 @@ class MiniBatchHandler:
         return max(src_tokens, tgt_tokens)
 
 
-class OptimizerHandler:
-    """
-    Hangling an optimizer with the defined learning rate schedule.
-    """
-    def __init__(self, optimizer: Adam, n_warmup_steps: int,
-                 amplification_factor: float, model_hidden_dimension:
-                 int) -> None:
-        self.optimizer = optimizer
-        self.n_warmup_steps = n_warmup_steps
-        self.amplification_factor = amplification_factor
-        self.model_hidden_dimension = model_hidden_dimension
-        self._training_step_number = 0
-        self._learning_rate = 0
-
-    def get_learning_rate(self, step: int = None):
-        """
-        Return the learning rate at the input step according to the Noam
-        learning rate trend.
-        """
-        if step is not None:
-            step = self._training_step_number
-        # reconstructing Noam trend as (amplified, by a scalar) minimum
-        # between a line passing through origin with positive slope - initial
-        #  trend kept until warm-up is over - and a decreasing hyperbola -
-        # trend maintained since warm-up is over to the end of training -
-        # tending to 0 after ∞ steps - see my notes for demonstration that
-        # their intersection corresponds to a step number equal to
-        # n_warmup_steps:
-        return self.amplification_factor * (
-            (self.model_hidden_dimension ** (-0.5)) *
-            min(
-                (step ** (-0.5)),  # decreasing hyperbola
-                (step * (self.n_warmup_steps ** (-1.5)))  # warm-up line
-            )
-        )
-
-    def run_weight_update_step(self):
-        """
-        Update model parameters, in addition to learning rate value and
-        current training step counter.
-        """
-        self._training_step_number += 1
-        self._learning_rate = self.get_learning_rate(step=self.
-                                                     _training_step_number)
-        # updating the learning rate for all the parameters the optimizer
-        # is assigned to:
-        for parameters in self.optimizer.param_groups:
-            parameters['lr'] = self._learning_rate
-        # updating the trainable model parameters:
-        self.optimizer.step()
-        # cleaning gradients of trainable weights, for the next iteration:
-        self.optimizer.zero_grad()
-
-
 class LossMinimizer:
     """
     Take care of loss computation, backpropagation and weight update during a
@@ -264,7 +110,7 @@ class LossMinimizer:
                  n_mini_batch_tokens: int) -> float:
         """
         Compute loss from log-probabilities, and, if an optimizer handler is
-        # passed, backpropagate gradient and update weights to minimize loss.
+        passed, backpropagate gradient and update weights to minimize loss.
         """
         # TODO: check returned data type - float or Tensor?
 
@@ -306,6 +152,119 @@ class LossMinimizer:
         # returning the loss value reverted back to the original,
         # un-normalized scale:
         return loss.item() * n_mini_batch_tokens
+
+
+class MultiGPULossCompute:
+    """
+    Take care of loss computation, backpropagation and weight update during a
+    single training iteration (for single mini-batch in a given epoch) among
+    different GPUS according to a data-parallel strategy.
+    """
+    def __init__(self, final_log_softmax_layer: Module, criterion: Module,
+                 devices, chunk_size: int = 5, optimizer_handler:
+                 OptimizerHandler = None) -> None:
+        self.final_log_softmax_layer = final_log_softmax_layer
+        self.criterion = parallel_replicate(criterion, devices=devices)
+        self.optimizer_handler = optimizer_handler
+        self.devices = devices
+        self.chunk_size = chunk_size
+
+    def __call__(self, log_probabilities: Tensor, labels: Tensor,
+                 n_mini_batch_tokens: int) -> float:
+        """
+        Compute loss from log-probabilities, and, if an optimizer handler is
+        passed, backpropagate gradient and update weights to minimize loss.
+        """
+        # TODO: check returned data type - float or Tensor?
+
+        ###########################################################################################################
+
+        # computing final softmax log-probabilities:
+        log_probabilities = self.final_log_softmax_layer(log_probabilities)
+        # computing loss value, flattening all outputs of all sequences along
+        # a unique dimension (with no changes on the computational graphs but
+        # more efficiently for the subsequent computations, using 2D arrays),
+        # i.e. sequences are flattened:
+        loss = self.criterion(
+            predicted_log_probabilities=log_probabilities.contiguous().view(
+                (-1, log_probabilities.size(-1))
+            ),  # 3D -> 2D
+            tgt_tokens=labels.contiguous().view(-1)  # 2D -> 1D
+        ) / n_mini_batch_tokens
+        # this normalization of the loss, which is returned by the criterion
+        # as the sum of all the single loss values, by the number of tokens
+        # in the mini-batch, which is analogous to the number of mini-batches
+        # with sequences flattened and fused together, is carried out only to
+        # backpropagate its gradient and to update weights more efficiently,
+        # and it is reverted afterwards to return the original loss value
+
+        # updating weights only when an optimizer is passed:
+        if self.optimizer_handler is not None:
+
+            # backpropagating gradient to trainable weights:
+            loss.backward()
+            # NOTE: this step is included in this 'if' statement
+            # to execute it, i.e. to compute gradients, only when updating
+            # weights, contrary to the original implementation
+            # updating trainable weights:
+
+            self.optimizer_handler.run_weight_update_step()
+            # NOTE: gradients of trainable weights are cleaned, for the next
+            # iteration, implicitly within this method call of the optimizer
+            # handler and not explicitly here, contrary to the original
+            # implementation
+
+        # returning the loss value reverted back to the original,
+        # un-normalized scale:
+        return loss.item() * n_mini_batch_tokens
+        
+    # def __call__(self, out, targets, normalize):
+        total = 0.0
+        generator = nn.parallel.replicate(self.generator, 
+                                                devices=self.devices)
+        out_scatter = nn.parallel.scatter(out, 
+                                          target_gpus=self.devices)
+        out_grad = [[] for _ in out_scatter]
+        targets = nn.parallel.scatter(targets, 
+                                      target_gpus=self.devices)
+
+        # Divide generating into chunks.
+        chunk_size = self.chunk_size
+        for i in range(0, out_scatter[0].size(1), chunk_size):
+            # Predict distributions
+            out_column = [[Variable(o[:, i:i+chunk_size].data, 
+                                    requires_grad=self.opt is not None)] 
+                           for o in out_scatter]
+            gen = nn.parallel.parallel_apply(generator, out_column)
+
+            # Compute loss. 
+            y = [(g.contiguous().view(-1, g.size(-1)), 
+                  t[:, i:i+chunk_size].contiguous().view(-1)) 
+                 for g, t in zip(gen, targets)]
+            loss = nn.parallel.parallel_apply(self.criterion, y)
+
+            # Sum and normalize loss
+            l = nn.parallel.gather(loss, 
+                                   target_device=self.devices[0])
+            l = l.sum()[0] / normalize
+            total += l.data[0]
+
+            # Backprop loss to output of transformer
+            if self.opt is not None:
+                l.backward()
+                for j, l in enumerate(loss):
+                    out_grad[j].append(out_column[j][0].grad.data.clone())
+
+        # Backprop all loss through transformer.            
+        if self.opt is not None:
+            out_grad = [Variable(torch.cat(og, dim=1)) for og in out_grad]
+            o1 = out
+            o2 = nn.parallel.gather(out_grad, 
+                                    target_device=self.devices[0])
+            o1.backward(gradient=o2)
+            self.opt.step()
+            self.opt.optimizer.zero_grad()
+        return total * normalize
 
 
 def copy_task_dataset_builder(
