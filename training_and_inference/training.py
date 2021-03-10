@@ -8,9 +8,10 @@ from typing import Generator
 
 from numpy import int64 as numpy_int64
 from numpy.random import randint
-from torch import from_numpy, Tensor
+from torch import cat as torch_cat, from_numpy, Tensor
 from torch.nn import Module
-from torch.nn.parallel import replicate as parallel_replicate
+from torch.nn.parallel import gather as parallel_gather,\
+    replicate as parallel_replicate, scatter as parallel_scatter
 
 from transformer.architecture.attention import allowed_positions_to_attend
 from transformer.training_and_inference.loss import LabelSmoothedLoss
@@ -101,7 +102,7 @@ class LossMinimizer:
     single training iteration (for single mini-batch in a given epoch).
     """
     def __init__(self, final_log_softmax_layer: Module, criterion: Module,
-                 optimizer_handler: OptimizerHandler = None) -> None:
+                 optimizer_handler: OptimizerHandler = None) -> float:
         self.final_log_softmax_layer = final_log_softmax_layer
         self.criterion = criterion
         self.optimizer_handler = optimizer_handler
@@ -136,13 +137,15 @@ class LossMinimizer:
         # updating weights only when an optimizer is passed:
         if self.optimizer_handler is not None:
 
-            # backpropagating gradient to trainable weights:
+            # backpropagating loss gradient to trainable weights:
             loss.backward()
             # NOTE: this step is included in this 'if' statement
             # to execute it, i.e. to compute gradients, only when updating
             # weights, contrary to the original implementation
             # updating trainable weights:
 
+            # updating weights based on their respective gradients, eventually
+            # cleaning such gradients for next iterations:
             self.optimizer_handler.run_weight_update_step()
             # NOTE: gradients of trainable weights are cleaned, for the next
             # iteration, implicitly within this method call of the optimizer
@@ -154,7 +157,7 @@ class LossMinimizer:
         return loss.item() * n_mini_batch_tokens
 
 
-class MultiGPULossCompute:
+class DataParallelLossMinimizer:
     """
     Take care of loss computation, backpropagation and weight update during a
     single training iteration (for single mini-batch in a given epoch) among
@@ -175,39 +178,75 @@ class MultiGPULossCompute:
         Compute loss from log-probabilities, and, if an optimizer handler is
         passed, backpropagate gradient and update weights to minimize loss.
         """
-        # TODO: check returned data type - float or Tensor?
+
+        # replicating the last log-softmax layer on all the devices - note
+        # that it is done here instead of during initialization (contrary to
+        # the optimizer):
+        # TODO: understand why it is not done during __init__ contrary to the
+        # optimizer
+        final_log_softmax_layer = parallel_replicate(
+            self.final_log_softmax_layer,
+            device=self.devices
+        )
+
+        # distributing the tensors of predicted log-probabilities and labels
+        # among all the devices by splitting them along the first dimenstion,
+        # that is the mini-batch size, so as to distribute the mini-batch
+        # samples among parallel sub-mini batches, each one on a different
+        # device:
+        scattered_log_probabilities = parallel_scatter(
+            log_probabilities,
+            target_gpus=self.devices
+        )
+        scattered_labels = parallel_scatter(
+            labels,
+            target_gpus=self.devices
+        )
+        # initializing the different gradients with respect to the samples in
+        # the respective sub-mini-batches, on the respective devices:
+        gradients_from_devices = [[] for _ in scattered_log_probabilities]
 
         ###########################################################################################################
 
-        # computing final softmax log-probabilities:
-        log_probabilities = self.final_log_softmax_layer(log_probabilities)
-        # computing loss value, flattening all outputs of all sequences along
-        # a unique dimension (with no changes on the computational graphs but
-        # more efficiently for the subsequent computations, using 2D arrays),
-        # i.e. sequences are flattened:
-        loss = self.criterion(
-            predicted_log_probabilities=log_probabilities.contiguous().view(
-                (-1, log_probabilities.size(-1))
-            ),  # 3D -> 2D
-            tgt_tokens=labels.contiguous().view(-1)  # 2D -> 1D
-        ) / n_mini_batch_tokens
-        # this normalization of the loss, which is returned by the criterion
-        # as the sum of all the single loss values, by the number of tokens
-        # in the mini-batch, which is analogous to the number of mini-batches
-        # with sequences flattened and fused together, is carried out only to
-        # backpropagate its gradient and to update weights more efficiently,
-        # and it is reverted afterwards to return the original loss value
+        ###########################################################################################################
 
-        # updating weights only when an optimizer is passed:
+            # computing gradients, for updating weights later, only when an
+            # optimizer is passed:
+            if self.optimizer_handler is not None:
+
+                # backpropagating loss gradient to output log-probabilites - Chain
+                # Rule is exploited to later backpropagate complete gradients up
+                # to each weight, but gradients across different sub-mini-batches
+                # on different devices need to be cumulated before:
+                loss.backward()
+
+        # computing gradients and updating weights only when an optimizer is
+        # passed:
         if self.optimizer_handler is not None:
 
-            # backpropagating gradient to trainable weights:
-            loss.backward()
-            # NOTE: this step is included in this 'if' statement
-            # to execute it, i.e. to compute gradients, only when updating
-            # weights, contrary to the original implementation
-            # updating trainable weights:
+            # gathering all gradients from sub-mini-batches on different
+            # devices and concatenating them along the first dimenstion, that
+            # is the mini-batch size - now these are loss gradients with
+            # respect to output log-probabilities - and completing Chain Rule,
+            # backpropagating from these complete gradients to weights -
+            # equivalently to backpropagating gradient with respect to weights
+            # of the loss averaged on all samples in the whole mini-batch,
+            # i.e. on all sub-mini-batches among different devices:
+            gradients_from_devices = [
+                # concatenating gradients along the 1st dimension TODO: i.e.?
+                tensor(torch_cat(gradients_from_devices, dim=1),
+                                 requires_grad=True)
+                for g in gradients_from_devices
+            ]
+            log_probabilities.backward(
+                gradient=paraller_gather(
+                    gradients_from_devices,
+                    target_device=self.devices[0]  # device used to compute
+                )
+            )
 
+            # updating weights based on their respective gradients, eventually
+            # cleaning such gradients for next iterations:
             self.optimizer_handler.run_weight_update_step()
             # NOTE: gradients of trainable weights are cleaned, for the next
             # iteration, implicitly within this method call of the optimizer
@@ -217,16 +256,18 @@ class MultiGPULossCompute:
         # returning the loss value reverted back to the original,
         # un-normalized scale:
         return loss.item() * n_mini_batch_tokens
+
+        ###########################################################################################################
         
     # def __call__(self, out, targets, normalize):
-        total = 0.0
-        generator = nn.parallel.replicate(self.generator, 
-                                                devices=self.devices)
-        out_scatter = nn.parallel.scatter(out, 
-                                          target_gpus=self.devices)
-        out_grad = [[] for _ in out_scatter]
-        targets = nn.parallel.scatter(targets, 
-                                      target_gpus=self.devices)
+        # total = 0.0
+        # generator = nn.parallel.replicate(self.generator, 
+        #                                         devices=self.devices)
+        # out_scatter = nn.parallel.scatter(out, 
+        #                                   target_gpus=self.devices)
+        # out_grad = [[] for _ in out_scatter]
+        # targets = nn.parallel.scatter(targets, 
+        #                               target_gpus=self.devices)
 
         # Divide generating into chunks.
         chunk_size = self.chunk_size
@@ -249,22 +290,22 @@ class MultiGPULossCompute:
             l = l.sum()[0] / normalize
             total += l.data[0]
 
-            # Backprop loss to output of transformer
-            if self.opt is not None:
-                l.backward()
+            # # Backprop loss to output of transformer
+            # if self.opt is not None:
+            #     l.backward()
                 for j, l in enumerate(loss):
                     out_grad[j].append(out_column[j][0].grad.data.clone())
 
-        # Backprop all loss through transformer.            
-        if self.opt is not None:
+        # # Backprop all loss through transformer.            
+        # if self.opt is not None:
             out_grad = [Variable(torch.cat(og, dim=1)) for og in out_grad]
             o1 = out
             o2 = nn.parallel.gather(out_grad, 
                                     target_device=self.devices[0])
-            o1.backward(gradient=o2)
-            self.opt.step()
-            self.opt.optimizer.zero_grad()
-        return total * normalize
+            # o1.backward(gradient=o2)
+            # self.opt.step()
+            # self.opt.optimizer.zero_grad()
+        # return total * normalize
 
 
 def copy_task_dataset_builder(

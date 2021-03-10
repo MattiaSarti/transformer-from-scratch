@@ -3,8 +3,7 @@ Utilities for loading data.
 """
 
 
-from torchtext.data import Field, Iterator
-from torchtext.data import batch as torchtext_batch
+from torchtext.data import batch as torchtext_batch, Field, Iterator
 from torchtext.datasets import IWSLT
 
 from transformer.training.preprocessing import Tokenizer

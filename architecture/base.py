@@ -5,9 +5,7 @@ Base layers and utilities.
 
 from copy import deepcopy
 
-from torch import Tensor
-from torch import ones as torch_ones
-from torch import zeros as torch_zeros
+from torch import ones as torch_ones, Tensor, zeros as torch_zeros
 from torch.nn import Dropout, Linear, Module, ModuleList, Parameter
 from torch.nn.functional import log_softmax, relu
 

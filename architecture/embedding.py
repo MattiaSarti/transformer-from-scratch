@@ -5,12 +5,8 @@ Embedding and positional encoding layers.
 
 from math import log, sqrt
 
-from torch import arange as torch_arange
-from torch import cos as torch_cos
-from torch import exp as torch_exp
-from torch import Tensor
-from torch import sin as torch_sin
-from torch import zeros as torch_zeros
+from torch import arange as torch_arange, cos as torch_cos, exp as torch_exp,\
+    sin as torch_sin, Tensor, zeros as torch_zeros
 from torch.nn import Dropout, Embedding, Module
 
 

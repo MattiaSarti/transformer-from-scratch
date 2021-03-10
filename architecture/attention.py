@@ -5,8 +5,7 @@ Layers and utilities related to the attention mechanism.
 
 from math import sqrt
 
-from numpy import ones as np_ones
-from numpy import tril
+from numpy import ones as np_ones, tril
 from torch import from_numpy, matmul, Tensor
 from torch.nn import Dropout, Linear, Module
 from torch.nn.functional import softmax
