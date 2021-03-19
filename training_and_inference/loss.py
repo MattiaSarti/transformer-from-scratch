@@ -56,7 +56,7 @@ class LabelSmoothedLoss(Module):
         # not have to receive a re-distribution of the original target one-hot
         # unitary probability distribution:
         smoothed_tgt_distributions = predicted_log_probabilities.detach()\
-            .clone()
+            .data.clone()
         # NOTE: necessary to make the smoothed label distributions not require
         # backpropagation (i.e. gradient computations and weight update)
         smoothed_tgt_distributions.fill_(self.redistributed_probability_each)
@@ -72,7 +72,7 @@ class LabelSmoothedLoss(Module):
         # the other tokens of the vocabulary:
         smoothed_tgt_distributions.scatter_(
             dim=1,
-            index=tgt_tokens.unsqueeze(dim=1),  # 1D -> 2D
+            index=tgt_tokens.data.unsqueeze(dim=1),  # 1D -> 2D
             value=self.confidence
         )
 
@@ -82,7 +82,7 @@ class LabelSmoothedLoss(Module):
         smoothed_tgt_distributions[:, self.padding_token] = 0
 
         # for outputs whose target corresponds to the padding token:
-        mask_indices = nonzero(tgt_tokens == self.padding_token)
+        mask_indices = nonzero(tgt_tokens.data == self.padding_token)
         if mask_indices.dim() > 0:  # TODO: '.dim()' is always 2
             # not considering predictions over samples where the target token
             # is the padding one by setting all the probability values over

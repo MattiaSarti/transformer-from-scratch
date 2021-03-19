@@ -10,7 +10,7 @@ from numpy import int64 as numpy_int64
 from numpy.random import randint
 from torch import cat as torch_cat, from_numpy, Tensor
 from torch.nn import Module
-from torch.nn.parallel import gather as parallel_gather,\
+from torch.nn.parallel import gather as parallel_gather, parallel_apply,\
     replicate as parallel_replicate, scatter as parallel_scatter
 
 from transformer.architecture.attention import allowed_positions_to_attend
@@ -52,7 +52,7 @@ class MiniBatch:
             self.tgt_input_tokens = tgt_tokens[:, :-1]  # excluding </s> token
             self.tgt_expected_tokens = tgt_tokens[:, 1:]  # excluding <s> token
             self.actual_n_target_tokens = \
-                (self.tgt_expected_tokens != padding_token).sum().item()
+                (self.tgt_expected_tokens != padding_token).data.sum().item()
             # only target positions up to the current position are allowed to
             # be attended by the decoder, for each position:
             self.tgt_mask = self.build_mask(self.tgt_input_tokens,
@@ -107,8 +107,8 @@ class LossMinimizer:
         self.criterion = criterion
         self.optimizer_handler = optimizer_handler
 
-    def __call__(self, log_probabilities: Tensor, labels: Tensor,
-                 n_mini_batch_tokens: int) -> float:
+    def __call__(self, logits: Tensor, labels: Tensor, n_mini_batch_tokens:
+                 int) -> float:
         """
         Compute loss from log-probabilities, and, if an optimizer handler is
         passed, backpropagate gradient and update weights to minimize loss.
@@ -116,7 +116,7 @@ class LossMinimizer:
         # TODO: check returned data type - float or Tensor?
 
         # computing final softmax log-probabilities:
-        log_probabilities = self.final_log_softmax_layer(log_probabilities)
+        log_probabilities = self.final_log_softmax_layer(logits)
         # computing loss value, flattening all outputs of all sequences along
         # a unique dimension (with no changes on the computational graphs but
         # more efficiently for the subsequent computations, using 2D arrays),
@@ -172,12 +172,15 @@ class DataParallelLossMinimizer:
         self.devices = devices
         self.chunk_size = chunk_size
 
-    def __call__(self, log_probabilities: Tensor, labels: Tensor,
-                 n_mini_batch_tokens: int) -> float:
+    def __call__(self, logits: Tensor, labels: Tensor, n_mini_batch_tokens:
+                 int) -> float:
         """
         Compute loss from log-probabilities, and, if an optimizer handler is
         passed, backpropagate gradient and update weights to minimize loss.
         """
+
+        # TODO: understand
+        total = 0.0
 
         # replicating the last log-softmax layer on all the devices - note
         # that it is done here instead of during initialization (contrary to
@@ -194,19 +197,31 @@ class DataParallelLossMinimizer:
         # that is the mini-batch size, so as to distribute the mini-batch
         # samples among parallel sub-mini batches, each one on a different
         # device:
-        scattered_log_probabilities = parallel_scatter(
-            log_probabilities,
+        scattered_logits = parallel_scatter(
+            inputs=logits,
             target_gpus=self.devices
         )
         scattered_labels = parallel_scatter(
-            labels,
+            inputs=labels,
             target_gpus=self.devices
         )
+
         # initializing the different gradients with respect to the samples in
         # the respective sub-mini-batches, on the respective devices:
-        gradients_from_devices = [[] for _ in scattered_log_probabilities]
+        gradients_from_devices = [[] for _ in scattered_logits]
 
         ###########################################################################################################
+
+        for i in range(0, scattered_logits[0].dim(1), self.chunk_size):
+
+            ... = [[tensor(l[:, i:i+self.chunk_size],
+                           requires_grad=self.optimizer_handler is not None)]
+                   for l in scattered_logits]
+
+            scattered_log_probabilities = parallel_apply(
+                self.final_log_softmax_layer,
+                ...
+            )
 
         ###########################################################################################################
 
@@ -240,7 +255,7 @@ class DataParallelLossMinimizer:
             ]
             log_probabilities.backward(
                 gradient=paraller_gather(
-                    gradients_from_devices,
+                    outputs=gradients_from_devices,
                     target_device=self.devices[0]  # device used to compute
                 )
             )
@@ -308,9 +323,9 @@ class DataParallelLossMinimizer:
         # return total * normalize
 
 
-def copy_task_dataset_builder(
-        vocabulary_size: int, mini_batch_size: int,
-        n_mini_batches: int) -> Generator[MiniBatch, None, None]:
+def copy_task_dataset_builder(vocabulary_size: int, mini_batch_size: int,
+                              n_mini_batches: int) -> Generator[MiniBatch,
+                                                                None, None]:
     """
     Build generator yielding dummy samples and labels for a toy source-target
     copy task.
@@ -341,9 +356,9 @@ def copy_task_dataset_builder(
         )
 
 
-def execute_training_epoch(
-        dataset_iterator: Generator[MiniBatch, None, None], model: Module,
-        loss_minimizer: LossMinimizer, verbose: bool = True) -> float:
+def execute_training_epoch(dataset_iterator: Generator[MiniBatch, None, None],
+                           model: Module, loss_minimizer: LossMinimizer,
+                           verbose: bool = True) -> float:
     """
     Execute a single epoch of model training.
     """
@@ -355,7 +370,7 @@ def execute_training_epoch(
     for i, mini_batch in enumerate(dataset_iterator):
 
         # forward propagation:
-        output = model.forward(
+        output_logits = model.forward(
             # TODO: understand why it uses "model.forward()", despite the docs
             # suggest using "model.__call__()" by directly calling "model()"
             # instead
@@ -367,7 +382,7 @@ def execute_training_epoch(
 
         # loss computation, backpropagation and weight update:
         loss = loss_minimizer(
-            x=output,
+            x=output_logits,
             y=mini_batch.tgt_expected_tokens,
             n_mini_batch_tokens=mini_batch.actual_n_target_tokens
         )

@@ -25,6 +25,7 @@ from transformer.architecture.decoder import Decoder, DecoderBlock,\
 from transformer.architecture.seq2seq import EncoderDecoder,\
     Seq2SeqBuildingBlocks
 
+from transformer.training_and_inference.preprocessing import Tokenizer
 from transformer.training_and_inference.training import\
     copy_task_dataset_builder, execute_training_epoch, LabelSmoothedLoss,\
     LossMinimizer, OptimizerHandler
@@ -287,10 +288,9 @@ class Transformer:
 
     def train_on_toy_copy_task(
                 self,
+                n_epochs: int,
                 epoch_samples: int,
                 mini_batch_size: int,
-                n_epochs: int,
-                padding_token: int,
                 label_smoothing_factor: float,
                 learning_rate_n_warmup_steps: int = 4000,
                 learning_rate_amplification_factor: float = 2,
@@ -298,21 +298,24 @@ class Transformer:
                 adam_epsilon: float = 1e-9
                 ) -> None:
         """
-        Execute the whole training of the model.
+        Training the model on a toy task: copying the source sentence, with an
+        identical target.
         """
         assert self.src_vocabulary_dimension == self\
             .tgt_vocabulary_dimension, "For this toy task, the source and"\
             + " target vocabularies have to  be shared."
         assert self.max_sequence_length == 10, "For this toy task, the"\
             + " maximum sequence length has to be 10."
-        assert padding_token == 0, "For this toy task, the padding token"\
-            + " index has to be 0."
+
+        # for this toy task, the padding token index has to be 0:
+        padding_token = 0
 
         criterion = LabelSmoothedLoss(
             softmax_dimension=self.tgt_vocabulary_dimension,
             padding_token=padding_token,
             smoothing_factor=label_smoothing_factor
         )
+
         optimizer_handler = OptimizerHandler(
             optimizer=Adam(
                 params=self.model.parameters(),
@@ -372,3 +375,128 @@ class Transformer:
             print("Average Loss per Token: {l:.3f}".format(l=loss))
 
         print('-' * 60)
+
+    def train_on_IWSLT(
+                self,
+                mini_batch_size: int = 12000,
+                n_epochs: int = 10,
+                padding_token: int = 0,
+                label_smoothing_factor: float = 0.1,
+                learning_rate_n_warmup_steps: int = 4000,
+                learning_rate_amplification_factor: float = 2,
+                adam_betas: Tuple[float, float] = (0.9, 0.98),
+                adam_epsilon: float = 1e-9
+                ) -> None:
+        """
+        Training the model on the IWSLT dataset: a { German -> English }
+        translation task.
+        """
+
+        # TODO: understand how to structure these instructions:
+        # max_sequence_length: int, min_vocabulary_counts: int
+        # self.max_sequence_length = max_sequence_length
+        # self.min_vocabulary_counts = min_vocabulary_counts
+
+        max_sequence_length = 100  # [number of tokens]
+        min_vocabulary_counts = 2
+
+        tokenizer = Tokenizer(src_language='de', tgt_language='en')
+
+        # handlers for converting raw text into tokenized tensors:
+        src_data_handler = Field(
+            tokenize=tokenizer.tokenize_src,
+            init_token=None,  # not required for source tokens
+            eos_token=None,  # not required for source tokens
+            pad_token=tokenizer.padding_token,
+            unk_token=tokenizer.unk_token,
+        )
+        tgt_data_handler = Field(
+            tokenize=tokenizer.tokenize_tgt,
+            init_token=tokenizer.bos_token,
+            eos_token=tokenizer.eos_token,
+            pad_token=tokenizer.padding_token,
+            unk_token=tokenizer.unk_token
+        )
+
+        # loading the samples while splitting them among training, validation and
+        # test sets:
+        training_samples, val_samples, test_samples = IWSLT.splits(
+            exts=('.de', '.en'),
+            fields=(src_data_handler, tgt_data_handler),
+            # choosing only samples for which filter_pred(sample) is True,
+            # corresponding to samples where both the source and the target
+            # sequences are shorter or equal to the maximum allowed length:
+            filter_pred=lambda x: (
+                (len(vars(x)['src']) <= max_sequence_length) and
+                (len(vars(x)['trg']) <= max_sequence_length)
+                # TODO: adjust names of attributes ("MiniBatch" class ?)
+            )
+        )
+
+        # building source and target dictionaries from already tokenized training
+        # samples:
+        src_data_handler.build_vocab(
+            training_samples.src,
+            # TODO: adjust name of attribute ("MiniBatch" class ?)
+            min_freq=min_vocabulary_counts
+        )
+        tgt_data_handler.build_vocab(
+            training_samples.trg,
+            # TODO: adjust name of attribute ("MiniBatch" class ?)
+            min_freq=min_vocabulary_counts
+        )
+
+    # TODO: set seed for deterministic, reproducible results:
+    # def seed_worker(worker_id):
+    #     worker_seed = torch.initial_seed() % 2**32
+    #     numpy.random.seed(worker_seed)
+    #     random.seed(worker_seed)
+
+    # DataLoader(
+    #     train_dataset,
+    #     batch_size=batch_size,
+    #     num_workers=num_workers,
+    #     worker_init_fn=seed_worker
+    # )
+
+        assert self.src_vocabulary_dimension == len(src_data_handler.vocab),\
+            "For this task, the source vocabulary must have a size of " +\
+                len(src_data_handler.vocab) + "."
+        assert self.tgt_vocabulary_dimension == len(tgt_data_handler.vocab),\
+            "For this task, the target vocabulary must have a size of " +\
+                len(tgt_data_handler.vocab) + "."
+        assert padding_token == tgt_data_handler.vocab.stoi["<blank>"],\
+            "For this task, the padding token must have " +\
+                tgt_data_handler.vocab.stoi["<blank>"] + " as index."
+
+        # identifying GPU devices used to parallelize operations:
+        devices = [0, 1, 2, 3]
+
+        criterion = LabelSmoothedLoss(
+            softmax_dimension=self.tgt_vocabulary_dimension,
+            padding_token=padding_token,
+            smoothing_factor=label_smoothing_factor
+        )
+
+        # moving the model parameters and buffers to the GPUs:
+        self.model.cuda()
+        # moving the criterion parameters and buffers to the GPUs:
+        criterion.cuda()
+
+        training_iterator = 
+        validation_iterator = 
+
+        #############################
+
+
+        optimizer_handler = OptimizerHandler(
+            optimizer=Adam(
+                params=self.model.parameters(),
+                lr=0,  # as learning rate is customized externally
+                betas=adam_betas,
+                eps=adam_epsilon
+            ),
+            n_warmup_steps=learning_rate_n_warmup_steps,
+            amplification_factor=learning_rate_amplification_factor,
+            model_hidden_dimension=self.representation_dimension
+        )
