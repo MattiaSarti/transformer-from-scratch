@@ -10,7 +10,7 @@ from torch import cat as torch_cat
 from torch import Tensor
 from torch import max as torch_max
 from torch import ones as torch_ones
-from torch.nn import Sequential
+from torch.nn import DataParallel, Sequential
 from torch.nn.init import xavier_uniform_
 from torch.optim import Adam
 
@@ -26,7 +26,7 @@ from transformer.architecture.seq2seq import EncoderDecoder,\
     Seq2SeqBuildingBlocks
 
 from transformer.training_and_inference.preprocessing import Tokenizer
-from transformer.training_and_inference.training import\
+from transformer.training_and_inference.training_and_inference import\
     copy_task_dataset_builder, execute_training_epoch, LabelSmoothedLoss,\
     LossMinimizer, OptimizerHandler
 
@@ -378,19 +378,26 @@ class Transformer:
 
     def train_on_IWSLT(
                 self,
-                mini_batch_size: int = 12000,
                 n_epochs: int = 10,
-                padding_token: int = 0,
+                mini_batch_size: int = 12000,
                 label_smoothing_factor: float = 0.1,
-                learning_rate_n_warmup_steps: int = 4000,
-                learning_rate_amplification_factor: float = 2,
+                learning_rate_n_warmup_steps: int = 2000,
+                learning_rate_amplification_factor: float = 1,
                 adam_betas: Tuple[float, float] = (0.9, 0.98),
                 adam_epsilon: float = 1e-9
                 ) -> None:
         """
-        Training the model on the IWSLT dataset: a { German -> English }
+        Training the model on the IWSLT 2016 TED talk: a { German -> English }
         translation task.
         """
+
+        # identifying GPU devices used to parallelize operations:
+        device_ids = [0, 1, 2, 3]
+
+        # ensuring the mini-batch size is greater than (or at least equal to)
+        # the number of GPUs employed:
+        assert mini_batch_size >= len(device_ids), "Mini-batch size must " +\
+            "be greater than (at least equal to) the number of GPUs employed."
 
         # TODO: understand how to structure these instructions:
         # max_sequence_length: int, min_vocabulary_counts: int
@@ -420,7 +427,7 @@ class Transformer:
 
         # loading the samples while splitting them among training, validation and
         # test sets:
-        training_samples, val_samples, test_samples = IWSLT.splits(
+        training_samples, validation_samples, test_samples = IWSLT.splits(
             exts=('.de', '.en'),
             fields=(src_data_handler, tgt_data_handler),
             # choosing only samples for which filter_pred(sample) is True,
@@ -446,6 +453,25 @@ class Transformer:
             min_freq=min_vocabulary_counts
         )
 
+        training_iterator = DatasetIterator(
+            training_samples,
+            batch_size=BATCH_SIZE,
+            device=0,
+            repeat=False,
+            sort_key=lambda x: (len(x.src), len(x.trg)),
+            batch_size_fn=batch_size_fn,
+            train=True
+        )
+        validation_iterator = DatasetIterator(
+            validation_samples,
+            batch_size=BATCH_SIZE,
+            device=0,
+            repeat=False,
+            sort_key=lambda x: (len(x.src), len(x.trg)),
+            batch_size_fn=batch_size_fn,
+            train=False
+        )
+
     # TODO: set seed for deterministic, reproducible results:
     # def seed_worker(worker_id):
     #     worker_seed = torch.initial_seed() % 2**32
@@ -459,18 +485,15 @@ class Transformer:
     #     worker_init_fn=seed_worker
     # )
 
+        # padding token id as imposed by the tokenizer:
+        padding_token = tgt_data_handler.vocab.stoi["<blank>"]
+
         assert self.src_vocabulary_dimension == len(src_data_handler.vocab),\
             "For this task, the source vocabulary must have a size of " +\
                 len(src_data_handler.vocab) + "."
         assert self.tgt_vocabulary_dimension == len(tgt_data_handler.vocab),\
             "For this task, the target vocabulary must have a size of " +\
                 len(tgt_data_handler.vocab) + "."
-        assert padding_token == tgt_data_handler.vocab.stoi["<blank>"],\
-            "For this task, the padding token must have " +\
-                tgt_data_handler.vocab.stoi["<blank>"] + " as index."
-
-        # identifying GPU devices used to parallelize operations:
-        devices = [0, 1, 2, 3]
 
         criterion = LabelSmoothedLoss(
             softmax_dimension=self.tgt_vocabulary_dimension,
@@ -480,14 +503,9 @@ class Transformer:
 
         # moving the model parameters and buffers to the GPUs:
         self.model.cuda()
+
         # moving the criterion parameters and buffers to the GPUs:
         criterion.cuda()
-
-        training_iterator = 
-        validation_iterator = 
-
-        #############################
-
 
         optimizer_handler = OptimizerHandler(
             optimizer=Adam(
@@ -500,3 +518,63 @@ class Transformer:
             amplification_factor=learning_rate_amplification_factor,
             model_hidden_dimension=self.representation_dimension
         )
+
+        # NOTE: the optimizer handler operates on objects that are already
+        # on GPU(s), so it does not need to be moved there
+        # TODO: am I right?
+
+        # NOTE: the model must have its parameters and buffers on
+        # device_ids[0] before parallelizing it, and so does it now
+
+        # parallelizing the model, i.e. copying the model parameters across
+        # the chosen GPU devices and allowing to split inputs across such
+        # devices splitting them along the first dimension, i.e. the
+        # mini-batch dimension - during forward propagation, the model is
+        # independently replicated on each device, with each replica
+        # handling the respective portion of input samples, while, during
+        # backpropagation, gradients from each replica are summed into the
+        # "original" model, converging all the mini-batch information on a
+        # single device for weight update:
+        parallelized_model = DataParallel(self.model, device_ids=device_ids)
+
+        # for each training epoch:
+        for epoch in range(n_epochs):
+
+            print('-' * 60)
+            print("Epoch " + str(epoch + 1) + "/" + str(n_epochs))
+
+            # switching to training mode:
+            parallelized_model.train()
+
+            # executing a training epoch:
+            _ = execute_training_epoch(
+                dataset_iterator=,
+                model=parallelized_model,
+                loss_minimizer=DataParallelLossMinimizer(
+                    final_log_softmax_layer=self.model.log_softmax_layer,
+                    criterion=criterion,
+                    device_ids=device_ids,
+                    optimizer_handler=optimizer_handler
+                ),
+                verbose=True
+            )
+
+            # back to inference mode:
+            parallelized_model.eval()
+
+            # evaluating performances:
+            loss = execute_training_epoch(
+                dataset_iterator=,
+                model=parallelized_model,
+                loss_minimizer=DataParallelLossMinimizer(
+                    final_log_softmax_layer=self.model.log_softmax_layer,
+                    criterion=criterion,
+                    device_ids=device_ids,
+                    # no backpropagation and weight update:
+                    optimizer_handler=None
+                ),
+                verbose=False
+            )
+            print("Average Loss per Token: {l:.3f}".format(l=loss))
+
+        print('-' * 60)

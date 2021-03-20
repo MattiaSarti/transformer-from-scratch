@@ -4,7 +4,7 @@ Utilities for training a Transformer.
 
 
 from time import time
-from typing import Generator
+from typing import Generator, List
 
 from numpy import int64 as numpy_int64
 from numpy.random import randint
@@ -164,12 +164,12 @@ class DataParallelLossMinimizer:
     different GPUS according to a data-parallel strategy.
     """
     def __init__(self, final_log_softmax_layer: Module, criterion: Module,
-                 devices, chunk_size: int = 5, optimizer_handler:
-                 OptimizerHandler = None) -> None:
+                 device_ids: List[int], chunk_size: int = 5, 
+                 optimizer_handler: OptimizerHandler = None) -> None:
         self.final_log_softmax_layer = final_log_softmax_layer
-        self.criterion = parallel_replicate(criterion, devices=devices)
+        self.criterion = parallel_replicate(criterion, devices=device_ids)
         self.optimizer_handler = optimizer_handler
-        self.devices = devices
+        self.device_ids = device_ids
         self.chunk_size = chunk_size
 
     def __call__(self, logits: Tensor, labels: Tensor, n_mini_batch_tokens:
@@ -189,7 +189,7 @@ class DataParallelLossMinimizer:
         # optimizer
         final_log_softmax_layer = parallel_replicate(
             self.final_log_softmax_layer,
-            device=self.devices
+            device=self.device_ids
         )
 
         # distributing the tensors of predicted log-probabilities and labels
@@ -199,11 +199,11 @@ class DataParallelLossMinimizer:
         # device:
         scattered_logits = parallel_scatter(
             inputs=logits,
-            target_gpus=self.devices
+            target_gpus=self.device_ids
         )
         scattered_labels = parallel_scatter(
             inputs=labels,
-            target_gpus=self.devices
+            target_gpus=self.device_ids
         )
 
         # initializing the different gradients with respect to the samples in
@@ -256,7 +256,7 @@ class DataParallelLossMinimizer:
             log_probabilities.backward(
                 gradient=paraller_gather(
                     outputs=gradients_from_devices,
-                    target_device=self.devices[0]  # device used to compute
+                    target_device=self.device_ids[0]  # device used to compute
                 )
             )
 

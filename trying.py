@@ -52,10 +52,9 @@ if __name__ == '__main__':
     print('\n')
 
     model.train_on_toy_copy_task(
+        n_epochs=100,
         epoch_samples=30*20,
         mini_batch_size=30,
-        n_epochs=100,
-        padding_token=0,
         label_smoothing_factor=0.0,
         learning_rate_n_warmup_steps=400,
         learning_rate_amplification_factor=1
