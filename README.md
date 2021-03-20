@@ -1,5 +1,5 @@
 # transformer-from-scratch
-# How I Reimplemented the Original Transformer [1] From Scratch
+## How I Reimplemented the Original Transformer [1] From Scratch
 
 
 ### References:
