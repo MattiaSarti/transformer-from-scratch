@@ -3,9 +3,7 @@
 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 
 
 ### Code Style:
-\:heavy_check_mark: pylint-compliant
-\:heavy_check_mark: flake8-compliant
-\:heavy_check_mark: (deliberately) exaggeratedly commented
+The code is both :heavy_check_mark: pylint-compliant and :heavy_check_mark: flake8-compliant, and :heavy_check_mark: (deliberately) exaggeratedly commented
 
 ### References:
 - [1] Attention Is All You Need, 2017, Vaswani et al.
