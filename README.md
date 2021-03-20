@@ -5,10 +5,10 @@
 ### Code Style:
 :heavy_check_mark: pylint-compliant\
 :heavy_check_mark: flake8-compliant\
-:heavy_check_mark: (deliberately) exaggeratedly commented
-- [X] pylint-compliant\
-- [X] flake8-compliant\
-- [X] (deliberately) exaggeratedly commented
+:heavy_check_mark: (deliberately) exaggeratedly commented\
+- pylint-compliant :heavy_check_mark:
+- flake8-compliant :heavy_check_mark:
+- (deliberately) exaggeratedly commented :heavy_check_mark:
 
 ### References:
 - [1] Attention Is All You Need, 2017, Vaswani et al.
