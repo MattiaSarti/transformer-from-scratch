@@ -501,11 +501,11 @@ class Transformer:
             smoothing_factor=label_smoothing_factor
         )
 
-        # moving the model parameters and buffers to the GPUs:
-        self.model.cuda()
+        # moving the model parameters and buffers to the main GPU:
+        self.model.to('cuda:0')
 
-        # moving the criterion parameters and buffers to the GPUs:
-        criterion.cuda()
+        # moving the criterion parameters and buffers to the main GPU:
+        criterion.to('cuda:0')
 
         optimizer_handler = OptimizerHandler(
             optimizer=Adam(
