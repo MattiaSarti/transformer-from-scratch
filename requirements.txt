@@ -1,0 +1,7 @@
+numpy==1.19.5
+spacy==2.3.2
+--find-links https://download.pytorch.org/whl/torch_stable.html
+torch==...+cu111
+torchaudio===...
+torchtext==...
+torchvision==...+cu111

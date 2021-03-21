@@ -1,7 +1,7 @@
 """
-Trying the model on the IWSLT 2016 TED talk: a { German -> English }
-translation task, printing examples before and after training to evaluate
-the different behavior achieved.
+Trying the model on the IWSLT 2016 TED talk dataset: a { German -> English }
+translation task, printing examples before and after training to evaluate the
+different behavior achieved.
 """
 
 
@@ -20,19 +20,26 @@ if __name__ == '__main__':
     _ = numpy_seed(0)
     random_seed(0)
 
-    # max_sequence_length = 10
+    # iterators for the training and validation sets:
+    ...
 
-    # model = Transformer(
-    #     src_vocabulary_dimension=11,
-    #     tgt_vocabulary_dimension=11,
-    #     n_encoder_blocks=6,
-    #     n_decoder_blocks=6,
-    #     token_representation_dimension=512,
-    #     feedforward_dimension=2048,
-    #     n_attention_heads=8,
-    #     max_sequence_length=max_sequence_length,
-    #     dropout_prob=0.1
-    # )
+    # the source and target vocabulary sizes are imposed by the tokenizer:
+    src_vocabulary_dimension = len(src_data_handler.vocab)
+    tgt_vocabulary_dimension = len(tgt_data_handler.vocab)
+
+    max_sequence_length = 100  # [number of tokens]
+
+    model = Transformer(
+        src_vocabulary_dimension=src_vocabulary_dimension,
+        tgt_vocabulary_dimension=tgt_vocabulary_dimension,
+        n_encoder_blocks=6,
+        n_decoder_blocks=6,
+        token_representation_dimension=512,
+        feedforward_dimension=2048,
+        n_attention_heads=8,
+        max_sequence_length=max_sequence_length,
+        dropout_prob=0.1
+    )
 
     # src_sequence = tensor([x for x in range(1, 11)])
     # src_sequence_mask = torch_ones((1, 1, max_sequence_length))

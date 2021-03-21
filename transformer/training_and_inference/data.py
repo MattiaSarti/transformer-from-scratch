@@ -155,18 +155,11 @@ def copy_task_dataset_builder(vocabulary_size: int, mini_batch_size: int,
             padding_token=0  # as assumed above
         )
 
-def dataset_builder_IWSLT_task() -> Tuple[, , int]:
+def dataset_builder_IWSLT_task(max_sequence_length: int) -> Tuple[, , int]:
     """
-    Build generator yielding dummy samples and labels for a toy source-target
-    copy task.
+    .
     """
 
-    # TODO: understand how to structure these instructions:
-    # max_sequence_length: int, min_vocabulary_counts: int
-    # self.max_sequence_length = max_sequence_length
-    # self.min_vocabulary_counts = min_vocabulary_counts
-
-    max_sequence_length = 100  # [number of tokens]
     min_vocabulary_counts = 2
 
     tokenizer = Tokenizer(src_language='de', tgt_language='en')
@@ -205,16 +198,22 @@ def dataset_builder_IWSLT_task() -> Tuple[, , int]:
     # building source and target dictionaries from already tokenized training
     # samples:
     src_data_handler.build_vocab(
-        training_samples.src,
-        # TODO: adjust name of attribute ("MiniBatch" class ?)
+        training_samples.src_tokens,
+        # TODO: check name of attribute ("MiniBatch" class ?)
         min_freq=min_vocabulary_counts
     )
     tgt_data_handler.build_vocab(
-        training_samples.trg,
-        # TODO: adjust name of attribute ("MiniBatch" class ?)
+        training_samples.tgt_input_tokens,
+        # TODO: check name of attribute ("MiniBatch" class ?)
         min_freq=min_vocabulary_counts
     )
 
+    # padding token id as imposed by the tokenizer:
+    padding_token = tgt_data_handler.vocab.stoi["<blank>"]
+
+    # ordering samples in mini-batches so as to group samples with similar
+    # lengths in the same mini-batches, minimizing padding requirements within
+    # mini-batches:
     training_iterator = DatasetIterator(
         training_samples,
         batch_size=BATCH_SIZE,
@@ -223,6 +222,10 @@ def dataset_builder_IWSLT_task() -> Tuple[, , int]:
         sort_key=lambda x: (len(x.src), len(x.trg)),
         batch_size_fn=batch_size_fn,
         train=True
+    )
+    training_iterator = (
+        rebatch(padding_token=padding_token, mini_batch=mini_batch) for
+            mini_batch in training_iterator
     )
     validation_iterator = DatasetIterator(
         validation_samples,
@@ -233,23 +236,10 @@ def dataset_builder_IWSLT_task() -> Tuple[, , int]:
         batch_size_fn=batch_size_fn,
         train=False
     )
-
-    # TODO
-
-    # TODO: impose these
-    assert self.src_vocabulary_dimension == len(src_data_handler.vocab),\
-        "For this task, the source vocabulary must have a size of " +\
-            len(src_data_handler.vocab) + "."
-    assert self.tgt_vocabulary_dimension == len(tgt_data_handler.vocab),\
-        "For this task, the target vocabulary must have a size of " +\
-            len(tgt_data_handler.vocab) + "."
-
-    # padding token id as imposed by the tokenizer:
-    padding_token = tgt_data_handler.vocab.stoi["<blank>"]
-
-    # :
-    training_iterator = (rebatch(padding_token=padding_token, mini_batch=mini_batch) for mini_batch in training_iterator)
-    validation_iterator = (rebatch(padding_token=padding_token, mini_batch=mini_batch) for mini_batch in validation_iterator)
+    validation_iterator = (
+        rebatch(padding_token=padding_token, mini_batch=mini_batch) for
+            mini_batch in validation_iterator
+    )
 
     return training_iterator, validation_iterator, padding_token
 

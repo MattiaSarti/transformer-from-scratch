@@ -1,7 +1,7 @@
 """
-Just trying the model on a toy task: copying the source sentence as the target
-one, printing examples before and after training to evaluate the different
-behavior achieved.
+Trying the model on a toy task: copying the source sentence as the target one,
+printing examples before and after training to evaluate the different behavior
+achieved.
 """
 
 
@@ -24,7 +24,7 @@ if __name__ == '__main__':
     _ = numpy_seed(0)
     random_seed(0)
 
-    max_sequence_length = 10
+    max_sequence_length = 10  # [number of tokens]
 
     model = Transformer(
         src_vocabulary_dimension=11,
