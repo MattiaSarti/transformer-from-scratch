@@ -25,10 +25,12 @@ from transformer.architecture.decoder import Decoder, DecoderBlock,\
 from transformer.architecture.seq2seq import EncoderDecoder,\
     Seq2SeqBuildingBlocks
 
-from transformer.training_and_inference.preprocessing import Tokenizer
+from transformer.training_and_inference.data import\
+    dataset_builder_copy_task, dataset_builder_IWSLT_task
+from transformer.training_and_inference.optimizer import OptimizerHandler
 from transformer.training_and_inference.training_and_inference import\
-    copy_task_dataset_builder, execute_training_epoch, LabelSmoothedLoss,\
-    LossMinimizer, OptimizerHandler
+    DataParallelLossMinimizer, execute_training_epoch, LabelSmoothedLoss,\
+    LossMinimizer
 
 
 class HyperparameterDict(TypedDict):
@@ -339,7 +341,7 @@ class Transformer:
 
             # executing a training epoch:
             _ = execute_training_epoch(
-                dataset_iterator=copy_task_dataset_builder(
+                dataset_iterator=dataset_builder_copy_task(
                     vocabulary_size=self.src_vocabulary_dimension,
                     mini_batch_size=mini_batch_size,
                     n_mini_batches=(int(epoch_samples / mini_batch_size))
@@ -358,7 +360,7 @@ class Transformer:
 
             # evaluating performances:
             loss = execute_training_epoch(
-                dataset_iterator=copy_task_dataset_builder(
+                dataset_iterator=dataset_builder_copy_task(
                     vocabulary_size=self.src_vocabulary_dimension,
                     mini_batch_size=mini_batch_size,
                     n_mini_batches=(int(n_epochs / mini_batch_size) + 1)
@@ -399,101 +401,10 @@ class Transformer:
         assert mini_batch_size >= len(device_ids), "Mini-batch size must " +\
             "be greater than (at least equal to) the number of GPUs employed."
 
-        # TODO: understand how to structure these instructions:
-        # max_sequence_length: int, min_vocabulary_counts: int
-        # self.max_sequence_length = max_sequence_length
-        # self.min_vocabulary_counts = min_vocabulary_counts
-
-        max_sequence_length = 100  # [number of tokens]
-        min_vocabulary_counts = 2
-
-        tokenizer = Tokenizer(src_language='de', tgt_language='en')
-
-        # handlers for converting raw text into tokenized tensors:
-        src_data_handler = Field(
-            tokenize=tokenizer.tokenize_src,
-            init_token=None,  # not required for source tokens
-            eos_token=None,  # not required for source tokens
-            pad_token=tokenizer.padding_token,
-            unk_token=tokenizer.unk_token,
+        training_iterator, validation_iterator,\
+             padding_token = dataset_builder_IWSLT_task(
+            
         )
-        tgt_data_handler = Field(
-            tokenize=tokenizer.tokenize_tgt,
-            init_token=tokenizer.bos_token,
-            eos_token=tokenizer.eos_token,
-            pad_token=tokenizer.padding_token,
-            unk_token=tokenizer.unk_token
-        )
-
-        # loading the samples while splitting them among training, validation and
-        # test sets:
-        training_samples, validation_samples, test_samples = IWSLT.splits(
-            exts=('.de', '.en'),
-            fields=(src_data_handler, tgt_data_handler),
-            # choosing only samples for which filter_pred(sample) is True,
-            # corresponding to samples where both the source and the target
-            # sequences are shorter or equal to the maximum allowed length:
-            filter_pred=lambda x: (
-                (len(vars(x)['src']) <= max_sequence_length) and
-                (len(vars(x)['trg']) <= max_sequence_length)
-                # TODO: adjust names of attributes ("MiniBatch" class ?)
-            )
-        )
-
-        # building source and target dictionaries from already tokenized training
-        # samples:
-        src_data_handler.build_vocab(
-            training_samples.src,
-            # TODO: adjust name of attribute ("MiniBatch" class ?)
-            min_freq=min_vocabulary_counts
-        )
-        tgt_data_handler.build_vocab(
-            training_samples.trg,
-            # TODO: adjust name of attribute ("MiniBatch" class ?)
-            min_freq=min_vocabulary_counts
-        )
-
-        training_iterator = DatasetIterator(
-            training_samples,
-            batch_size=BATCH_SIZE,
-            device=0,
-            repeat=False,
-            sort_key=lambda x: (len(x.src), len(x.trg)),
-            batch_size_fn=batch_size_fn,
-            train=True
-        )
-        validation_iterator = DatasetIterator(
-            validation_samples,
-            batch_size=BATCH_SIZE,
-            device=0,
-            repeat=False,
-            sort_key=lambda x: (len(x.src), len(x.trg)),
-            batch_size_fn=batch_size_fn,
-            train=False
-        )
-
-    # TODO: set seed for deterministic, reproducible results:
-    # def seed_worker(worker_id):
-    #     worker_seed = torch.initial_seed() % 2**32
-    #     numpy.random.seed(worker_seed)
-    #     random.seed(worker_seed)
-
-    # DataLoader(
-    #     train_dataset,
-    #     batch_size=batch_size,
-    #     num_workers=num_workers,
-    #     worker_init_fn=seed_worker
-    # )
-
-        # padding token id as imposed by the tokenizer:
-        padding_token = tgt_data_handler.vocab.stoi["<blank>"]
-
-        assert self.src_vocabulary_dimension == len(src_data_handler.vocab),\
-            "For this task, the source vocabulary must have a size of " +\
-                len(src_data_handler.vocab) + "."
-        assert self.tgt_vocabulary_dimension == len(tgt_data_handler.vocab),\
-            "For this task, the target vocabulary must have a size of " +\
-                len(tgt_data_handler.vocab) + "."
 
         criterion = LabelSmoothedLoss(
             softmax_dimension=self.tgt_vocabulary_dimension,
@@ -548,7 +459,7 @@ class Transformer:
 
             # executing a training epoch:
             _ = execute_training_epoch(
-                dataset_iterator=,
+                dataset_iterator=training_iterator,
                 model=parallelized_model,
                 loss_minimizer=DataParallelLossMinimizer(
                     final_log_softmax_layer=self.model.log_softmax_layer,
@@ -564,7 +475,7 @@ class Transformer:
 
             # evaluating performances:
             loss = execute_training_epoch(
-                dataset_iterator=,
+                dataset_iterator=validation_iterator,
                 model=parallelized_model,
                 loss_minimizer=DataParallelLossMinimizer(
                     final_log_softmax_layer=self.model.log_softmax_layer,

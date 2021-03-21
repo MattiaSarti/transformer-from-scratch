@@ -6,8 +6,8 @@ Ours\
 Google Translate (as of 6 p.m. on December 21st)
 
 ### Code Style:
-✓ pylint-compliant\
-✓ flake8-compliant\
+✓ Pylint-compliant\
+✓ Flake8-compliant\
 ✓ (deliberately) exaggeratedly commented
 
 ### References:

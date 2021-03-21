@@ -1,5 +1,7 @@
 """
-Just trying.
+Just trying the model on a toy task: copying the source sentence as the target
+one, printing examples before and after training to evaluate the different
+behavior achieved.
 """
 
 
@@ -12,7 +14,7 @@ from torch import long as torch_long
 from torch import ones as torch_ones
 from torch import zeros as torch_zeros
 
-from transformer.transformer import Transformer
+from .transformer.transformer import Transformer
 
 
 if __name__ == '__main__':
@@ -20,7 +22,7 @@ if __name__ == '__main__':
     # for reproducible results:
     _ = manual_seed(0)
     _ = numpy_seed(0)
-    _ = random_seed(0)
+    random_seed(0)
 
     max_sequence_length = 10
 

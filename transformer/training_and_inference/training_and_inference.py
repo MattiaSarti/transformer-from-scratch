@@ -8,92 +8,13 @@ from typing import Generator, List
 
 from numpy import int64 as numpy_int64
 from numpy.random import randint
-from torch import cat as torch_cat, from_numpy, Tensor
+from torch import cat as torch_cat, Tensor
 from torch.nn import Module
 from torch.nn.parallel import gather as parallel_gather, parallel_apply,\
     replicate as parallel_replicate, scatter as parallel_scatter
 
-from transformer.architecture.attention import allowed_positions_to_attend
 from transformer.training_and_inference.loss import LabelSmoothedLoss
 from transformer.training_and_inference.optimizer import OptimizerHandler
-
-
-# TODO: this should not be a class, it just stores data after processing them
-class MiniBatch:
-    """
-    Mini-batch of samples.
-    """
-    @staticmethod
-    def build_mask(tgt_tokens: Tensor, padding_token: int) -> Tensor:
-        """
-        Build masks of target positions allowed to be attended by the decoder,
-        position by position:
-        """
-        tgt_mask = (tgt_tokens != padding_token).unsqueeze(dim=-2)
-        tgt_mask = tgt_mask & (
-            allowed_positions_to_attend(
-                n_positions=tgt_tokens.size(-1)
-            ).type_as(tgt_mask)
-        )
-        # NOTE: the original implementation had '&', which is the bit-wise
-        # AND, in place of 'and', which is the logical AND... why? wasn't it
-        # wrong?
-        return tgt_mask
-
-    def __init__(self, src_tokens: Tensor, padding_token: int,
-                 tgt_tokens: Tensor = None) -> None:
-        # source inputs:
-        self.src_tokens = src_tokens
-        # all source positions are allowed to be attended, both by the
-        # encoder and by decoder:
-        self.src_mask = (src_tokens != padding_token).unsqueeze(dim=-2)
-        # when target outputs specified:
-        if tgt_tokens is not None:
-            self.tgt_input_tokens = tgt_tokens[:, :-1]  # excluding </s> token
-            self.tgt_expected_tokens = tgt_tokens[:, 1:]  # excluding <s> token
-            self.actual_n_target_tokens = \
-                (self.tgt_expected_tokens != padding_token).data.sum().item()
-            # only target positions up to the current position are allowed to
-            # be attended by the decoder, for each position:
-            self.tgt_mask = self.build_mask(self.tgt_input_tokens,
-                                            padding_token=padding_token)
-    # NOTE: understand why shapes of tgt masks are different from src masks
-
-
-class MiniBatchHandler:
-    """
-    TODO
-    """
-    def __init__(self, max_n_src_tokens_in_mini_batch: int,
-                 max_n_tgt_tokens_in_mini_batch: int) -> None:
-        self.max_n_src_tokens_in_mini_batch = max_n_src_tokens_in_mini_batch
-        self.max_n_tgt_tokens_in_mini_batch = max_n_tgt_tokens_in_mini_batch
-
-    def get_current_mini_batch_size(self, new, count: int):
-        """
-        TODO
-        """
-        # TODO: add data type & understand why they add an unused, additional
-        # argument called 'sofar'
-
-        # resetting initial values when starting a new mini-batch size
-        # monitoring (during construction):
-        if count == 1:
-            self.max_n_src_tokens_in_mini_batch = 0
-            self.max_n_tgt_tokens_in_mini_batch = 0
-        # :
-        self.max_n_src_tokens_in_mini_batch = max(
-            self.max_n_src_tokens_in_mini_batch,
-            len()
-        )
-        self.max_n_tgt_tokens_in_mini_batch = max(
-            self.max_n_tgt_tokens_in_mini_batch,
-            len()
-        )
-        # TODO:
-        src_tokens = count * self.max_n_src_tokens_in_mini_batch
-        tgt_tokens = count * self.max_n_tgt_tokens_in_mini_batch
-        return max(src_tokens, tgt_tokens)
 
 
 class LossMinimizer:
@@ -321,39 +242,6 @@ class DataParallelLossMinimizer:
             # self.opt.step()
             # self.opt.optimizer.zero_grad()
         # return total * normalize
-
-
-def copy_task_dataset_builder(vocabulary_size: int, mini_batch_size: int,
-                              n_mini_batches: int) -> Generator[MiniBatch,
-                                                                None, None]:
-    """
-    Build generator yielding dummy samples and labels for a toy source-target
-    copy task.
-    """
-    sequence_length = 10  # same for all sequences, here
-
-    for _ in range(n_mini_batches):
-        # random token indices, excluding 0 because assumed to represent the
-        # padding token:
-        samples = from_numpy(
-            randint(
-                low=1,
-                high=vocabulary_size,
-                size=(mini_batch_size, sequence_length),
-                dtype=numpy_int64
-            )
-        )
-        # assuming all sequences start with the same token, an hypothetical
-        # <s> token that can also be found in other positions of the sequences
-        # in this toy task:
-        samples[:, 0] = 1
-        # yielding mini-batch made of identical source and target samples
-        # (i.e. labels equal samples):
-        yield MiniBatch(
-            src_tokens=samples.detach().clone(),  # graph-detached, deep copy
-            tgt_tokens=samples.detach().clone(),  # graph-detached, deep copy
-            padding_token=0  # as assumed above
-        )
 
 
 def execute_training_epoch(dataset_iterator: Generator[MiniBatch, None, None],
