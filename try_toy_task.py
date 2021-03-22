@@ -9,12 +9,10 @@ from random import seed as random_seed
 
 from numpy.random import seed as numpy_seed
 from torch import manual_seed, tensor
-from torch import cat as torch_cat
-from torch import long as torch_long
-from torch import ones as torch_ones
-from torch import zeros as torch_zeros
+from torch import cat as torch_cat, long as torch_long, ones as torch_ones,\
+    unsqueeze as torch_unsqueeze, zeros as torch_zeros
 
-from .transformer.transformer import Transformer
+from transformer.transformer import Transformer
 
 
 if __name__ == '__main__':
@@ -24,21 +22,25 @@ if __name__ == '__main__':
     _ = numpy_seed(0)
     random_seed(0)
 
-    max_sequence_length = 10  # [number of tokens]
+    max_sequence_length = 100#10  # [number of tokens]
 
     model = Transformer(
-        src_vocabulary_dimension=11,
-        tgt_vocabulary_dimension=11,
+        src_vocabulary_dimension=10000,#11,
+        tgt_vocabulary_dimension=10000,#11,
         n_encoder_blocks=6,
         n_decoder_blocks=6,
-        token_representation_dimension=512,
+        representation_dimension=512,
         feedforward_dimension=2048,
         n_attention_heads=8,
         max_sequence_length=max_sequence_length,
         dropout_prob=0.1
     )
 
-    src_sequence = tensor([x for x in range(1, 11)])
+    # assert max_sequence_length == src_vocabulary_dimension
+    
+    src_sequence = tensor([2] * max_sequence_length)
+    # src_sequence = tensor([x for x in range(1, max_sequence_length + 1)])
+    src_sequence = torch_unsqueeze(input=src_sequence, dim=0)
     src_sequence_mask = torch_ones((1, 1, max_sequence_length))
 
     tgt_sequence_prediction = model.predict(
@@ -53,10 +55,18 @@ if __name__ == '__main__':
     print("-> Predicted target sequence:", tgt_sequence_prediction)
     print('\n')
 
+    # model.train_on_toy_copy_task(
+    #     n_epochs=100,
+    #     epoch_samples=30*20,
+    #     mini_batch_size=30,
+    #     label_smoothing_factor=0.0,
+    #     learning_rate_n_warmup_steps=400,
+    #     learning_rate_amplification_factor=1
+    # )
     model.train_on_toy_copy_task(
-        n_epochs=100,
-        epoch_samples=30*20,
-        mini_batch_size=30,
+        n_epochs=2,
+        epoch_samples=12000*3,
+        mini_batch_size=12000,
         label_smoothing_factor=0.0,
         learning_rate_n_warmup_steps=400,
         learning_rate_amplification_factor=1
@@ -94,6 +104,7 @@ if __name__ == '__main__':
             ),
             dim=-1
         )
+        src_sequence = torch_unsqueeze(input=src_sequence, dim=0)
         src_sequence_mask = torch_cat(
             (
                 torch_ones((1, 1, n_tokens), dtype=torch_long),

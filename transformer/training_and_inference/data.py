@@ -3,8 +3,10 @@ Utilities for loading data.
 """
 
 
-from typing import Tuple
+from typing import Generator, Tuple
 
+from numpy import int64 as numpy_int64
+from numpy.random import randint
 from torch import from_numpy, Tensor
 from torchtext.data import batch as torchtext_batch, Field, Iterator
 from torchtext.datasets import IWSLT
@@ -88,49 +90,48 @@ class MiniBatchHandler:
         # TODO:
         src_tokens = count * self.max_n_src_tokens_in_mini_batch
         tgt_tokens = count * self.max_n_tgt_tokens_in_mini_batch
-        return max(src_tokens, tgt_tokens)
+#         return max(src_tokens, tgt_tokens)
 
 
-class DatasetIterator(Iterator):
-    """
-    Iterator through mini-batches of the dataset, sorting them so as to
-    cluster samples with a similar length in the same mini-batches, reducing
-    padding requirements to the minimum.
-    """
-    def create_batches(self):
+# class DatasetIterator(Iterator):
+#     """
+#     Iterator through mini-batches of the dataset, sorting them so as to
+#     cluster samples with a similar length in the same mini-batches, reducing
+#     padding requirements to the minimum.
+#     """
+#     def create_batches(self):
 
-        if self.train:
+#         if self.train:
 
-            def pool(data, random_shuffler) -> :
-                # TODO: data types
-                "."
-                pass
+#             def pool(data, random_shuffler) -> :
+#                 # TODO: data types
+#                 "."
+#                 pass
 
-            self.batches = pool(self.data(), self.random_shuffler)
+#             self.batches = pool(self.data(), self.random_shuffler)
 
-        else:
+#         else:
 
-            self.batches = []
-            # for each mini-batch until all the dataset is covered:
-            for mini_batch in torchtext_batch(
-                    data=self.data(),
-                    batch_size=self.batch_size,
-                    batch_size_fn=self.batch_size_fn
-                    ):
-                # appending ...TODO: understand what
-                self.batches.append(
-                    sorted(mini_batch, key=self.sort_key)
-                )
+#             self.batches = []
+#             # for each mini-batch until all the dataset is covered:
+#             for mini_batch in torchtext_batch(
+#                     data=self.data(),
+#                     batch_size=self.batch_size,
+#                     batch_size_fn=self.batch_size_fn
+#                     ):
+#                 # appending ...TODO: understand what
+#                 self.batches.append(
+#                     sorted(mini_batch, key=self.sort_key)
+#                 )
 
 
-def copy_task_dataset_builder(vocabulary_size: int, mini_batch_size: int,
-                              n_mini_batches: int) -> Generator[MiniBatch,
-                                                                None, None]:
+def dataset_builder_copy_task(sequence_length: int, vocabulary_size: int,
+                              mini_batch_size: int, n_mini_batches: int)\
+        -> Generator[MiniBatch, None, None]:
     """
     Build generator yielding dummy samples and labels for a toy source-target
     copy task.
     """
-    sequence_length = 10  # same for all sequences, here
 
     for _ in range(n_mini_batches):
         # random token indices, excluding 0 because assumed to represent the
@@ -139,6 +140,7 @@ def copy_task_dataset_builder(vocabulary_size: int, mini_batch_size: int,
             randint(
                 low=1,
                 high=vocabulary_size,
+                # same length for all sequences, in this toy task:
                 size=(mini_batch_size, sequence_length),
                 dtype=numpy_int64
             )
@@ -155,93 +157,93 @@ def copy_task_dataset_builder(vocabulary_size: int, mini_batch_size: int,
             padding_token=0  # as assumed above
         )
 
-def dataset_builder_IWSLT_task(max_sequence_length: int) -> Tuple[, , int]:
-    """
-    .
-    """
+# def dataset_builder_IWSLT_task(max_sequence_length: int) -> Tuple[, , int]:
+#     """
+#     .
+#     """
 
-    min_vocabulary_counts = 2
+#     min_vocabulary_counts = 2
 
-    tokenizer = Tokenizer(src_language='de', tgt_language='en')
+#     tokenizer = Tokenizer(src_language='de', tgt_language='en')
 
-    # handlers for converting raw text into tokenized tensors:
-    src_data_handler = Field(
-        tokenize=tokenizer.tokenize_src,
-        init_token=None,  # not required for source tokens
-        eos_token=None,  # not required for source tokens
-        pad_token=tokenizer.padding_token,
-        unk_token=tokenizer.unk_token,
-    )
-    tgt_data_handler = Field(
-        tokenize=tokenizer.tokenize_tgt,
-        init_token=tokenizer.bos_token,
-        eos_token=tokenizer.eos_token,
-        pad_token=tokenizer.padding_token,
-        unk_token=tokenizer.unk_token
-    )
+#     # handlers for converting raw text into tokenized tensors:
+#     src_data_handler = Field(
+#         tokenize=tokenizer.tokenize_src,
+#         init_token=None,  # not required for source tokens
+#         eos_token=None,  # not required for source tokens
+#         pad_token=tokenizer.padding_token,
+#         unk_token=tokenizer.unk_token,
+#     )
+#     tgt_data_handler = Field(
+#         tokenize=tokenizer.tokenize_tgt,
+#         init_token=tokenizer.bos_token,
+#         eos_token=tokenizer.eos_token,
+#         pad_token=tokenizer.padding_token,
+#         unk_token=tokenizer.unk_token
+#     )
 
-    # loading the samples while splitting them among training, validation and
-    # test sets:
-    training_samples, validation_samples, test_samples = IWSLT.splits(
-        exts=('.de', '.en'),
-        fields=(src_data_handler, tgt_data_handler),
-        # choosing only samples for which filter_pred(sample) is True,
-        # corresponding to samples where both the source and the target
-        # sequences are shorter or equal to the maximum allowed length:
-        filter_pred=lambda x: (
-            (len(vars(x)['src']) <= max_sequence_length) and
-            (len(vars(x)['trg']) <= max_sequence_length)
-            # TODO: adjust names of attributes ("MiniBatch" class ?)
-        )
-    )
+#     # loading the samples while splitting them among training, validation and
+#     # test sets:
+#     training_samples, validation_samples, test_samples = IWSLT.splits(
+#         exts=('.de', '.en'),
+#         fields=(src_data_handler, tgt_data_handler),
+#         # choosing only samples for which filter_pred(sample) is True,
+#         # corresponding to samples where both the source and the target
+#         # sequences are shorter or equal to the maximum allowed length:
+#         filter_pred=lambda x: (
+#             (len(vars(x)['src']) <= max_sequence_length) and
+#             (len(vars(x)['trg']) <= max_sequence_length)
+#             # TODO: adjust names of attributes ("MiniBatch" class ?)
+#         )
+#     )
 
-    # building source and target dictionaries from already tokenized training
-    # samples:
-    src_data_handler.build_vocab(
-        training_samples.src_tokens,
-        # TODO: check name of attribute ("MiniBatch" class ?)
-        min_freq=min_vocabulary_counts
-    )
-    tgt_data_handler.build_vocab(
-        training_samples.tgt_input_tokens,
-        # TODO: check name of attribute ("MiniBatch" class ?)
-        min_freq=min_vocabulary_counts
-    )
+#     # building source and target dictionaries from already tokenized training
+#     # samples:
+#     src_data_handler.build_vocab(
+#         training_samples.src_tokens,
+#         # TODO: check name of attribute ("MiniBatch" class ?)
+#         min_freq=min_vocabulary_counts
+#     )
+#     tgt_data_handler.build_vocab(
+#         training_samples.tgt_input_tokens,
+#         # TODO: check name of attribute ("MiniBatch" class ?)
+#         min_freq=min_vocabulary_counts
+#     )
 
-    # padding token id as imposed by the tokenizer:
-    padding_token = tgt_data_handler.vocab.stoi["<blank>"]
+#     # padding token id as imposed by the tokenizer:
+#     padding_token = tgt_data_handler.vocab.stoi["<blank>"]
 
-    # ordering samples in mini-batches so as to group samples with similar
-    # lengths in the same mini-batches, minimizing padding requirements within
-    # mini-batches:
-    training_iterator = DatasetIterator(
-        training_samples,
-        batch_size=BATCH_SIZE,
-        device=0,
-        repeat=False,
-        sort_key=lambda x: (len(x.src), len(x.trg)),
-        batch_size_fn=batch_size_fn,
-        train=True
-    )
-    training_iterator = (
-        rebatch(padding_token=padding_token, mini_batch=mini_batch) for
-            mini_batch in training_iterator
-    )
-    validation_iterator = DatasetIterator(
-        validation_samples,
-        batch_size=BATCH_SIZE,
-        device=0,
-        repeat=False,
-        sort_key=lambda x: (len(x.src), len(x.trg)),
-        batch_size_fn=batch_size_fn,
-        train=False
-    )
-    validation_iterator = (
-        rebatch(padding_token=padding_token, mini_batch=mini_batch) for
-            mini_batch in validation_iterator
-    )
+#     # ordering samples in mini-batches so as to group samples with similar
+#     # lengths in the same mini-batches, minimizing padding requirements within
+#     # mini-batches:
+#     training_iterator = DatasetIterator(
+#         training_samples,
+#         batch_size=BATCH_SIZE,
+#         device=0,
+#         repeat=False,
+#         sort_key=lambda x: (len(x.src), len(x.trg)),
+#         batch_size_fn=batch_size_fn,
+#         train=True
+#     )
+#     training_iterator = (
+#         rebatch(padding_token=padding_token, mini_batch=mini_batch) for
+#             mini_batch in training_iterator
+#     )
+#     validation_iterator = DatasetIterator(
+#         validation_samples,
+#         batch_size=BATCH_SIZE,
+#         device=0,
+#         repeat=False,
+#         sort_key=lambda x: (len(x.src), len(x.trg)),
+#         batch_size_fn=batch_size_fn,
+#         train=False
+#     )
+#     validation_iterator = (
+#         rebatch(padding_token=padding_token, mini_batch=mini_batch) for
+#             mini_batch in validation_iterator
+#     )
 
-    return training_iterator, validation_iterator, padding_token
+#     return training_iterator, validation_iterator, padding_token
 
 # TODO: set seed for deterministic, reproducible results:
 # def seed_worker(worker_id):

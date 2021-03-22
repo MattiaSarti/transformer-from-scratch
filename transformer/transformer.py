@@ -26,7 +26,7 @@ from transformer.architecture.seq2seq import EncoderDecoder,\
     Seq2SeqBuildingBlocks
 
 from transformer.training_and_inference.data import\
-    dataset_builder_copy_task, dataset_builder_IWSLT_task
+    dataset_builder_copy_task#, dataset_builder_IWSLT_task
 from transformer.training_and_inference.optimizer import OptimizerHandler
 from transformer.training_and_inference.training_and_inference import\
     DataParallelLossMinimizer, execute_training_epoch, LabelSmoothedLoss,\
@@ -58,7 +58,7 @@ class Transformer:
                 tgt_vocabulary_dimension: int,
                 n_encoder_blocks: int = 6,
                 n_decoder_blocks: int = 6,
-                token_representation_dimension: int = 512,
+                representation_dimension: int = 512,
                 feedforward_dimension: int = 2048,
                 n_attention_heads: int = 8,
                 max_sequence_length: int = 5000,
@@ -306,8 +306,6 @@ class Transformer:
         assert self.src_vocabulary_dimension == self\
             .tgt_vocabulary_dimension, "For this toy task, the source and"\
             + " target vocabularies have to  be shared."
-        assert self.max_sequence_length == 10, "For this toy task, the"\
-            + " maximum sequence length has to be 10."
 
         # for this toy task, the padding token index has to be 0:
         padding_token = 0
@@ -342,6 +340,7 @@ class Transformer:
             # executing a training epoch:
             _ = execute_training_epoch(
                 dataset_iterator=dataset_builder_copy_task(
+                    sequence_length=self.max_sequence_length,
                     vocabulary_size=self.src_vocabulary_dimension,
                     mini_batch_size=mini_batch_size,
                     n_mini_batches=(int(epoch_samples / mini_batch_size))
@@ -361,6 +360,7 @@ class Transformer:
             # evaluating performances:
             loss = execute_training_epoch(
                 dataset_iterator=dataset_builder_copy_task(
+                    sequence_length=self.max_sequence_length,
                     vocabulary_size=self.src_vocabulary_dimension,
                     mini_batch_size=mini_batch_size,
                     n_mini_batches=(int(n_epochs / mini_batch_size) + 1)
@@ -378,114 +378,114 @@ class Transformer:
 
         print('-' * 60)
 
-    def train_on_IWSLT(
-                self,
-                n_epochs: int = 10,
-                mini_batch_size: int = 12000,
-                label_smoothing_factor: float = 0.1,
-                learning_rate_n_warmup_steps: int = 2000,
-                learning_rate_amplification_factor: float = 1,
-                adam_betas: Tuple[float, float] = (0.9, 0.98),
-                adam_epsilon: float = 1e-9
-                ) -> None:
-        """
-        Training the model on the IWSLT 2016 TED talk: a { German -> English }
-        translation task.
-        """
+    # def train_on_IWSLT(
+    #             self,
+    #             n_epochs: int = 10,
+    #             mini_batch_size: int = 12000,
+    #             label_smoothing_factor: float = 0.1,
+    #             learning_rate_n_warmup_steps: int = 2000,
+    #             learning_rate_amplification_factor: float = 1,
+    #             adam_betas: Tuple[float, float] = (0.9, 0.98),
+    #             adam_epsilon: float = 1e-9
+    #             ) -> None:
+    #     """
+    #     Training the model on the IWSLT 2016 TED talk: a { German -> English }
+    #     translation task.
+    #     """
 
-        # identifying GPU devices used to parallelize operations:
-        device_ids = [0, 1, 2, 3]
+    #     # identifying GPU devices used to parallelize operations:
+    #     device_ids = [0, 1, 2, 3]
 
-        # ensuring the mini-batch size is greater than (or at least equal to)
-        # the number of GPUs employed:
-        assert mini_batch_size >= len(device_ids), "Mini-batch size must " +\
-            "be greater than (at least equal to) the number of GPUs employed."
+    #     # ensuring the mini-batch size is greater than (or at least equal to)
+    #     # the number of GPUs employed:
+    #     assert mini_batch_size >= len(device_ids), "Mini-batch size must " +\
+    #         "be greater than (at least equal to) the number of GPUs employed."
 
-        training_iterator, validation_iterator,\
-             padding_token = dataset_builder_IWSLT_task(
+    #     training_iterator, validation_iterator,\
+    #          padding_token = dataset_builder_IWSLT_task(
             
-        )
+    #     )
 
-        criterion = LabelSmoothedLoss(
-            softmax_dimension=self.tgt_vocabulary_dimension,
-            padding_token=padding_token,
-            smoothing_factor=label_smoothing_factor
-        )
+    #     criterion = LabelSmoothedLoss(
+    #         softmax_dimension=self.tgt_vocabulary_dimension,
+    #         padding_token=padding_token,
+    #         smoothing_factor=label_smoothing_factor
+    #     )
 
-        # moving the model parameters and buffers to the main GPU:
-        self.model.to('cuda:0')
+    #     # moving the model parameters and buffers to the main GPU:
+    #     self.model.to('cuda:0')
 
-        # moving the criterion parameters and buffers to the main GPU:
-        criterion.to('cuda:0')
+    #     # moving the criterion parameters and buffers to the main GPU:
+    #     criterion.to('cuda:0')
 
-        optimizer_handler = OptimizerHandler(
-            optimizer=Adam(
-                params=self.model.parameters(),
-                lr=0,  # as learning rate is customized externally
-                betas=adam_betas,
-                eps=adam_epsilon
-            ),
-            n_warmup_steps=learning_rate_n_warmup_steps,
-            amplification_factor=learning_rate_amplification_factor,
-            model_hidden_dimension=self.representation_dimension
-        )
+    #     optimizer_handler = OptimizerHandler(
+    #         optimizer=Adam(
+    #             params=self.model.parameters(),
+    #             lr=0,  # as learning rate is customized externally
+    #             betas=adam_betas,
+    #             eps=adam_epsilon
+    #         ),
+    #         n_warmup_steps=learning_rate_n_warmup_steps,
+    #         amplification_factor=learning_rate_amplification_factor,
+    #         model_hidden_dimension=self.representation_dimension
+    #     )
 
-        # NOTE: the optimizer handler operates on objects that are already
-        # on GPU(s), so it does not need to be moved there
-        # TODO: am I right?
+    #     # NOTE: the optimizer handler operates on objects that are already
+    #     # on GPU(s), so it does not need to be moved there
+    #     # TODO: am I right?
 
-        # NOTE: the model must have its parameters and buffers on
-        # device_ids[0] before parallelizing it, and so does it now
+    #     # NOTE: the model must have its parameters and buffers on
+    #     # device_ids[0] before parallelizing it, and so does it now
 
-        # parallelizing the model, i.e. copying the model parameters across
-        # the chosen GPU devices and allowing to split inputs across such
-        # devices splitting them along the first dimension, i.e. the
-        # mini-batch dimension - during forward propagation, the model is
-        # independently replicated on each device, with each replica
-        # handling the respective portion of input samples, while, during
-        # backpropagation, gradients from each replica are summed into the
-        # "original" model, converging all the mini-batch information on a
-        # single device for weight update:
-        parallelized_model = DataParallel(self.model, device_ids=device_ids)
+    #     # parallelizing the model, i.e. copying the model parameters across
+    #     # the chosen GPU devices and allowing to split inputs across such
+    #     # devices splitting them along the first dimension, i.e. the
+    #     # mini-batch dimension - during forward propagation, the model is
+    #     # independently replicated on each device, with each replica
+    #     # handling the respective portion of input samples, while, during
+    #     # backpropagation, gradients from each replica are summed into the
+    #     # "original" model, converging all the mini-batch information on a
+    #     # single device for weight update:
+    #     parallelized_model = DataParallel(self.model, device_ids=device_ids)
 
-        # for each training epoch:
-        for epoch in range(n_epochs):
+    #     # for each training epoch:
+    #     for epoch in range(n_epochs):
 
-            print('-' * 60)
-            print("Epoch " + str(epoch + 1) + "/" + str(n_epochs))
+    #         print('-' * 60)
+    #         print("Epoch " + str(epoch + 1) + "/" + str(n_epochs))
 
-            # switching to training mode:
-            parallelized_model.train()
+    #         # switching to training mode:
+    #         parallelized_model.train()
 
-            # executing a training epoch:
-            _ = execute_training_epoch(
-                dataset_iterator=training_iterator,
-                model=parallelized_model,
-                loss_minimizer=DataParallelLossMinimizer(
-                    final_log_softmax_layer=self.model.log_softmax_layer,
-                    criterion=criterion,
-                    device_ids=device_ids,
-                    optimizer_handler=optimizer_handler
-                ),
-                verbose=True
-            )
+    #         # executing a training epoch:
+    #         _ = execute_training_epoch(
+    #             dataset_iterator=training_iterator,
+    #             model=parallelized_model,
+    #             loss_minimizer=DataParallelLossMinimizer(
+    #                 final_log_softmax_layer=self.model.log_softmax_layer,
+    #                 criterion=criterion,
+    #                 device_ids=device_ids,
+    #                 optimizer_handler=optimizer_handler
+    #             ),
+    #             verbose=True
+    #         )
 
-            # back to inference mode:
-            parallelized_model.eval()
+    #         # back to inference mode:
+    #         parallelized_model.eval()
 
-            # evaluating performances:
-            loss = execute_training_epoch(
-                dataset_iterator=validation_iterator,
-                model=parallelized_model,
-                loss_minimizer=DataParallelLossMinimizer(
-                    final_log_softmax_layer=self.model.log_softmax_layer,
-                    criterion=criterion,
-                    device_ids=device_ids,
-                    # no backpropagation and weight update:
-                    optimizer_handler=None
-                ),
-                verbose=False
-            )
-            print("Average Loss per Token: {l:.3f}".format(l=loss))
+    #         # evaluating performances:
+    #         loss = execute_training_epoch(
+    #             dataset_iterator=validation_iterator,
+    #             model=parallelized_model,
+    #             loss_minimizer=DataParallelLossMinimizer(
+    #                 final_log_softmax_layer=self.model.log_softmax_layer,
+    #                 criterion=criterion,
+    #                 device_ids=device_ids,
+    #                 # no backpropagation and weight update:
+    #                 optimizer_handler=None
+    #             ),
+    #             verbose=False
+    #         )
+    #         print("Average Loss per Token: {l:.3f}".format(l=loss))
 
-        print('-' * 60)
+    #     print('-' * 60)

@@ -6,8 +6,6 @@ Utilities for training a Transformer.
 from time import time
 from typing import Generator, List
 
-from numpy import int64 as numpy_int64
-from numpy.random import randint
 from torch import cat as torch_cat, Tensor
 from torch.nn import Module
 from torch.nn.parallel import gather as parallel_gather, parallel_apply,\
@@ -296,8 +294,8 @@ def execute_training_epoch(dataset_iterator: Generator[MiniBatch, None, None],
 
         # loss computation, backpropagation and weight update:
         loss = loss_minimizer(
-            x=output_logits,
-            y=mini_batch.tgt_expected_tokens,
+            logits=output_logits,
+            labels=mini_batch.tgt_expected_tokens,
             n_mini_batch_tokens=mini_batch.actual_n_target_tokens
         )
 
