@@ -13,4 +13,4 @@ Google Translate (as of 6 p.m. on December 21st)
 ### References:
 [1] Attention Is All You Need, 2017, Vaswani et al.\
 [2] The Annotated Transformer, 2018, Rush\
-[3] http://jalammar.github.io/illustrated-transformer/
+[3] http:<span>//jalammar.github.io</span>/illustrated-transformer/
