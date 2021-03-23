@@ -1,5 +1,5 @@
 """
-Trying the model on the IWSLT 2016 TED talk dataset: a { German -> English }
+Trying the model on an IWSLT 2016 TED Talks dataset: a { German -> English }
 translation task, printing examples before and after training to evaluate the
 different behavior achieved.
 """
