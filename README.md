@@ -8,11 +8,9 @@ Ours\
 Google Translate (as of 6 p.m. on December 21st)
 
 ### Tests:
-Code coverage: %
-#### How to Run Unit Tests:
-....
-#### How to Run Integration Tests:
-....
+✓ Unit Tests: passed\
+✓ Integration Tests: passed\
+✓ Code Coverage: ...%
 
 ### Code Style:
 ✓ Pylint-compliant\
