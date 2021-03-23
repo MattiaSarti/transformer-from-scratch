@@ -389,7 +389,7 @@ class Transformer:
     #             adam_epsilon: float = 1e-9
     #             ) -> None:
     #     """
-    #     Training the model on an IWSLT 2016 TED talks: a { German -> English }
+    #     Training the model on an IWSLT 2016 TED talks: the { German -> English }
     #     translation task.
     #     """
 

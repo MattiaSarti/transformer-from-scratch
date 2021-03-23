@@ -3,7 +3,7 @@
 An exercise to learn about NLP: a PyTorch implementation that followed an already existing one [2] - with some small differences, though - to prove myself I could build a Transformer from scratch and train it. After gaining theoretical intuition behind the architecture logic [3], I went through every line of code [2] and the respective docs, reproducing such steps while adundantly documenting and testing - and, sometimes, customizing - them.
 
 ### Insights:
-I was mostly interested in the architecture, but following [2] I also trained it on a German-to-English translation task from an IWSLT 2016 dataset to see it work:\
+I was mostly interested in the architecture, but following [2] I also trained it on the German-to-English translation task of the IWSLT 2016 dataset to see it work:\
 Ours\
 Google Translate (as of 6 p.m. on December 21st)
 
