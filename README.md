@@ -7,6 +7,13 @@ I was mostly interested in the architecture, but following [2] I also trained it
 Ours\
 Google Translate (as of 6 p.m. on December 21st)
 
+### Tests:
+Code coverage: %
+#### How to Run Unit Tests:
+....
+#### How to Run Integration Tests:
+....
+
 ### Code Style:
 ✓ Pylint-compliant\
 ✓ Flake8-compliant\
