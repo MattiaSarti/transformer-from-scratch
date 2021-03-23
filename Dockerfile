@@ -4,4 +4,4 @@ FROM python:3.8
 
 RUN pip install -r requirements.txt
 
-RUN sudo python -m spacy download de && sudo python -m spacy download en
+RUN python -m spacy download de && python -m spacy download en
