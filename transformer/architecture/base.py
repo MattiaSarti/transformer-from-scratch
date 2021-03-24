@@ -35,6 +35,7 @@ class LogSoftmax(Module):
         """
         Forward propagation.
         """
+        print('*'*10, '', self.__class__.__name__, '*'*10); print('input shape:', logits.shape); print('output shape:', (log_softmax(self.linear_layer(logits), dim=-1)).shape, end='\n\n')
         return log_softmax(self.linear_layer(logits), dim=-1)
 
 
@@ -54,6 +55,7 @@ class LayerNorm(Module):
         """
         mean = features.mean(dim=-1, keepdim=True)
         std = features.std(dim=-1, keepdim=True)
+        print('*'*10, '', self.__class__.__name__, '*'*10); print('input shape:', features.shape); print('output shape:', (((features - mean) / (std + self.epsilon)) * self.alpha + self.beta).shape, end='\n\n')
         return ((features - mean) / (std + self.epsilon)) * self.alpha\
             + self.beta
 
@@ -74,6 +76,7 @@ class ResidualConnectionAndLayerNorm(Module):
         """
         Forward propagation.
         """
+        print('*'*10, '', self.__class__.__name__, '*'*10); print('input shape:', features.shape); print('output shape:', (features + self.dropout_layer(base_layer(self.layer_normalization_layer(features)))).shape, end='\n\n')
         return features + self.dropout_layer(
             base_layer(
                 self.layer_normalization_layer(features)
@@ -109,6 +112,7 @@ class PositionWiseFeedForward(Module):
         """
         Forward propagation.
         """
+        print('*'*10, '', self.__class__.__name__, '*'*10); print('input shape:', features.shape); print('output shape:', (self.linear_layer_2(self.dropout_layer(relu(self.linear_layer_1(features))))).shape, end='\n\n')
         return self.linear_layer_2(
             self.dropout_layer(relu(self.linear_layer_1(features)))
         )

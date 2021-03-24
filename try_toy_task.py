@@ -90,8 +90,8 @@ if __name__ == '__main__':
 
     # initializing the model:
     model = Transformer(
-        src_vocabulary_dimension=10000,#11,
-        tgt_vocabulary_dimension=10000,#11,
+        src_vocabulary_dimension=11,
+        tgt_vocabulary_dimension=11,
         n_encoder_blocks=6,
         n_decoder_blocks=6,
         representation_dimension=512,

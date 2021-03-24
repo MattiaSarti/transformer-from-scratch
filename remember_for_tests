@@ -1,0 +1,5 @@
+torch.backends.cudnn.benchmark = False
+    & similar
+torch.equal
+
+ - ideas (I mean a whole training - prediction): test loss, test determinism

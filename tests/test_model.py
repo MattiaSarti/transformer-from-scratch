@@ -1,22 +1,12 @@
 """
-.
+Utilities for testing the model as a whole.
 """
 
 
 from unittest import TestCase
 
 
-class TestLayers(TestCase):
-    """
-    Test each single layer kind independently.
-    """
-    pass
-
-
 class TestModel(TestCase):
-    """
-    Test the model as a whole.
-    """
 
     def setUpClass(self):
         """

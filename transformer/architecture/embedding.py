@@ -29,6 +29,7 @@ class Embedder(Module):
         """
         Forward propagation.
         """
+        print('*'*10, '', self.__class__.__name__, '*'*10); print('input shape:', token_ids.shape); print('output shape:', (self.core_embedding_layer(token_ids) * sqrt(self.token_representation_dimension)).shape, end='\n\n')
         return self.core_embedding_layer(token_ids) * \
             sqrt(self.token_representation_dimension)
 
@@ -80,6 +81,7 @@ class PositionalEncoding(Module):
         """
         Forward propagation.
         """
+        print('*'*10, '', self.__class__.__name__, '*'*10); print('input shape:', token_embeddings.shape); print('output shape:', (self.dropout_layer(token_embeddings + self.positional_signals[:, :token_embeddings.size(1)])).shape, end='\n\n')
         return self.dropout_layer(
             token_embeddings +
             self.positional_signals[:, :token_embeddings.size(1)]
