@@ -10,8 +10,8 @@ Google Translate (as of 6 p.m. on December 21st)
 
 ## Why is it not a good task to apply a Transformer?
 mmmm
-## Why did you used such task anyway, then?
-Because I was into the architecture, I just trained it to see the architecture working correctly without the need of employing an external dataset.
+## Why did you choose such task anyway, then?
+Because I was into the architecture, I just trained it to see the architecture working correctly without employing an external dataset.
 
 ### Tests:
 ✓ Unit Tests: passed\
