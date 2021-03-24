@@ -23,6 +23,7 @@ class LogSoftmax(Module):
     """
     Linear layer followed by log-softmax activation function.
     """
+
     def __init__(self, token_representation_dimension: int,
                  vocabulary_dimension: int) -> None:
         super(LogSoftmax, self).__init__()
@@ -34,8 +35,16 @@ class LogSoftmax(Module):
     def forward(self, logits: Tensor) -> Tensor:
         """
         Forward propagation.
+
+        Tensor Shapes:
+
+            Args:
+                logits: (batch size, sequence length, n. features)
+
+            Returns:
+                (batch size, sequence length, vocabulary size)
+
         """
-        print('*'*10, '', self.__class__.__name__, '*'*10); print('input shape:', logits.shape); print('output shape:', (log_softmax(self.linear_layer(logits), dim=-1)).shape, end='\n\n')
         return log_softmax(self.linear_layer(logits), dim=-1)
 
 
@@ -43,6 +52,7 @@ class LayerNorm(Module):
     """
     Layer-normalization layer.
     """
+
     def __init__(self, feature_dimension: int, epsilon: float = 1e-6) -> None:
         super(LayerNorm, self).__init__()
         self.alpha = Parameter(data=torch_ones((feature_dimension)))
@@ -52,10 +62,18 @@ class LayerNorm(Module):
     def forward(self, features: Tensor) -> Tensor:
         """
         Forward propagation.
+
+        Tensor Shapes:
+
+            Args:
+                features: (batch size, sequence length, n. features)
+
+            Returns:
+                (batch size, sequence length, n. features)
+
         """
         mean = features.mean(dim=-1, keepdim=True)
         std = features.std(dim=-1, keepdim=True)
-        print('*'*10, '', self.__class__.__name__, '*'*10); print('input shape:', features.shape); print('output shape:', (((features - mean) / (std + self.epsilon)) * self.alpha + self.beta).shape, end='\n\n')
         return ((features - mean) / (std + self.epsilon)) * self.alpha\
             + self.beta
 
@@ -65,6 +83,7 @@ class ResidualConnectionAndLayerNorm(Module):
     Residual connection around a base layer, after dropout is applied to the
     base layer's output, eventually followed by layer-normalization.
     """
+
     def __init__(self, feature_dimension: int, dropout_prob: float) -> None:
         super(ResidualConnectionAndLayerNorm, self).__init__()
         self.layer_normalization_layer = LayerNorm(
@@ -75,8 +94,16 @@ class ResidualConnectionAndLayerNorm(Module):
     def forward(self, features, base_layer: Module) -> Tensor:
         """
         Forward propagation.
+
+        Tensor Shapes:
+
+            Args:
+                features: (batch size, sequence length, n. features)
+
+            Returns:
+                (batch size, sequence length, n. features)
+
         """
-        print('*'*10, '', self.__class__.__name__, '*'*10); print('input shape:', features.shape); print('output shape:', (features + self.dropout_layer(base_layer(self.layer_normalization_layer(features)))).shape, end='\n\n')
         return features + self.dropout_layer(
             base_layer(
                 self.layer_normalization_layer(features)
@@ -95,6 +122,7 @@ class PositionWiseFeedForward(Module):
     - equation: FFN(x) = max(0, xW1 + b1)W2 + b2 , with dropout applied only
         right after ReLU (i.e. max(..., 0)) application, during training.
     """
+
     def __init__(self, token_representation_dimension: int,
                  feedforward_dimension: int, dropout_prob: float) -> None:
         super(PositionWiseFeedForward, self).__init__()
@@ -111,8 +139,16 @@ class PositionWiseFeedForward(Module):
     def forward(self, features: Tensor) -> Tensor:
         """
         Forward propagation.
+
+        Tensor Shapes:
+
+            Args:
+                features: (batch size, sequence length, n. features)
+
+            Returns:
+                (batch size, sequence length, n. features)
+
         """
-        print('*'*10, '', self.__class__.__name__, '*'*10); print('input shape:', features.shape); print('output shape:', (self.linear_layer_2(self.dropout_layer(relu(self.linear_layer_1(features))))).shape, end='\n\n')
         return self.linear_layer_2(
             self.dropout_layer(relu(self.linear_layer_1(features)))
         )

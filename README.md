@@ -8,6 +8,11 @@ I was mostly interested in the architecture, but following [2] I also trained it
 Ours\
 Google Translate (as of 6 p.m. on December 21st)
 
+## Why is it not a good task to apply a Transformer?
+mmmm
+## Why did you used such task anyway, then?
+Because I was into the architecture, I just trained it to see the architecture working correctly without the need of employing an external dataset.
+
 ### Tests:
 ✓ Unit Tests: passed\
 ✓ Integration Tests: passed\

@@ -16,6 +16,7 @@ class Embedder(Module):
     (element-wise) multiplication of the embedded feature vector by the square
     root of the embedding dimension size.
     """
+
     def __init__(self, vocabulary_dimension: int,
                  token_representation_dimension: int) -> None:
         super(Embedder, self).__init__()
@@ -28,8 +29,16 @@ class Embedder(Module):
     def forward(self, token_ids: Tensor) -> Tensor:
         """
         Forward propagation.
+
+        Tensor Shapes:
+
+            Args:
+                token_ids: (batch size, sequence length)
+
+            Returns:
+                (batch size, sequence length, n. features)
+
         """
-        print('*'*10, '', self.__class__.__name__, '*'*10); print('input shape:', token_ids.shape); print('output shape:', (self.core_embedding_layer(token_ids) * sqrt(self.token_representation_dimension)).shape, end='\n\n')
         return self.core_embedding_layer(token_ids) * \
             sqrt(self.token_representation_dimension)
 
@@ -39,6 +48,7 @@ class PositionalEncoding(Module):
     Positional encoding layer, adding position information to feature values
     of input embeddings and eventually applying dropout.
     """
+
     def __init__(self, token_representation_dimension: int, dropout_prob:
                  float, max_sequence_length: int) -> None:
         super(PositionalEncoding, self).__init__()
@@ -80,8 +90,16 @@ class PositionalEncoding(Module):
     def forward(self, token_embeddings) -> Tensor:
         """
         Forward propagation.
+
+        Tensor Shapes:
+
+            Args:
+                token_embeddings: (batch size, sequence length, n. features)
+
+            Returns:
+                (batch size, sequence length, n. features)
+
         """
-        print('*'*10, '', self.__class__.__name__, '*'*10); print('input shape:', token_embeddings.shape); print('output shape:', (self.dropout_layer(token_embeddings + self.positional_signals[:, :token_embeddings.size(1)])).shape, end='\n\n')
         return self.dropout_layer(
             token_embeddings +
             self.positional_signals[:, :token_embeddings.size(1)]

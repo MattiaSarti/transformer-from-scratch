@@ -86,6 +86,7 @@ class MultiHeadAttention(Module):
     """
     Multi-Headed Attention layer.
     """
+
     def __init__(self, n_attention_heads: int,
                  token_representation_dimension: int,
                  dropout_prob: float) -> None:
@@ -114,6 +115,19 @@ class MultiHeadAttention(Module):
                 mask: Tensor = None) -> Tensor:
         """
         Forward propagation.
+
+        Tensor Shapes:
+
+            Args:
+                query_tokens: (batch size, sequence length, n. features)
+                key_or_value_tokens: (batch size, attended sequence length,
+                    n features)
+                mask: (batch size, 1 | attended sequence length,
+                    attended sequence length)
+
+            Returns:
+                (batch size, sequence length, n. features)
+
         """
 
         n_mini_batches = query_tokens.size(0)

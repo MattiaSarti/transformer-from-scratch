@@ -35,6 +35,7 @@ class DecoderBlock(Module):
     - residual connection;
     - layer-normalization layer.
     """
+
     def __init__(self, building_blocks: DecoderBlockBuildingBlocks,
                  feature_dimension: int, dropout_prob: float) -> None:
         super(DecoderBlock, self).__init__()
@@ -53,9 +54,23 @@ class DecoderBlock(Module):
         )
 
     def forward(self, tgt_features: Tensor, src_encoded_tokens: Tensor,
-                src_mask: Tensor, tgt_mask: Tensor) -> Tensor:
+                tgt_mask: Tensor, src_mask: Tensor) -> Tensor:
         """
         Forward propagation.
+
+        Tensor Shapes:
+
+            Args:
+                tgt_features: (batch size, tgt. sequence length, n. features)
+                src_encoded_tokens: (batch size, src. sequence length,
+                    n. features)
+                tgt_mask: (batch size, tgt. sequence length,
+                    tgt. sequence length)
+                src_mask: (batch size, 1, src. sequence length)
+
+            Returns:
+                (batch size, tgt. sequence_length, n. features)
+
         """
         # self-attention, towards decoder token positions themselves, followed
         # by residual connection and layer normalization:
@@ -87,6 +102,7 @@ class Decoder(Module):
     """
     Whole decoder, composed of repeated decoder blocks which do not share
     parameters.
+
     """
     def __init__(self, base_block, n_clones) -> None:
         super(Decoder, self).__init__()
@@ -96,9 +112,23 @@ class Decoder(Module):
         # TODO: see TODO below
 
     def forward(self, tgt_features: Tensor, src_encoded_tokens: Tensor,
-                src_mask: Tensor, tgt_mask: Tensor) -> Tensor:
+                tgt_mask: Tensor, src_mask: Tensor) -> Tensor:
         """
         Forward propagation.
+
+        Tensor Shapes:
+
+            Args:
+                tgt_features: (batch size, tgt. sequence length, n. features)
+                src_encoded_tokens: (batch size, src. sequence length,
+                    n. features)
+                tgt_mask: (batch size, tgt. sequence length,
+                    tgt. sequence length)
+                src_mask: (batch size, 1, tgt. sequence length)
+
+            Returns:
+                (batch size, tgt. sequence_length, n features)
+
         """
         # forwarding inputs throught all decoder blocks:
         for layer_block in self.layer_blocks:

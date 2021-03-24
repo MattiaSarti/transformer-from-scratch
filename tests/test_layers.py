@@ -17,6 +17,7 @@ from transformer.architecture.decoder import Decoder, DecoderBlock
 from transformer.architecture.seq2seq import Seq2Seq
 
 
+# hyperparameters for tests:
 SRC_VOCABULARY_DIMENSION = 9000
 TGT_VOCABULARY_DIMENSION = 11000
 N_ENCODER_BLOCKS = 5
@@ -24,8 +25,9 @@ N_DECODER_BLOCKS = 7
 REPRESENTATION_DIMENSION = 512
 FEEDFORWARD_DIMENSION = 2048
 N_ATTENTION_HEADS = 8
-MAX_SEQUENCE_LENGTH = 5000
+MAX_SEQUENCE_LENGTH = 300
 DROPOUT_PROB = 0.1
+MINI_BATCH_SIZE = 40
 
 
 class TestEmbedder(TestCase):

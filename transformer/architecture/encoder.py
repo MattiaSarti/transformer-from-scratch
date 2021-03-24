@@ -31,6 +31,7 @@ class EncoderBlock(Module):
     - residual connection;
     - layer-normalization layer.
     """
+
     def __init__(self, building_blocks: EncoderBlockBuildingBlocks,
                  feature_dimension: int, dropout_prob: float) -> None:
         super(EncoderBlock, self).__init__()
@@ -46,9 +47,19 @@ class EncoderBlock(Module):
             n_clones=2
         )
 
-    def forward(self, src_features: Tensor, mask: Tensor) -> Tensor:
+    def forward(self, src_features: Tensor, src_mask: Tensor) -> Tensor:
         """
         Forward propagation.
+
+        Tensor Shapes:
+
+            Args:
+                src_features: (batch size, src. sequence_length, n features)
+                src_mask: (batch size, 1, src. sequence length)
+
+            Returns:
+                (batch size, src. sequence length, n. features)
+
         """
         # self-attention, towards encoder token positions themselves, followed
         # by residual connection and layer normalization:
@@ -57,7 +68,7 @@ class EncoderBlock(Module):
             lambda x: self.self_multi_headed_attention_layer(
                 query_tokens=x,
                 key_or_value_tokens=x,
-                mask=mask
+                mask=src_mask
             )
         )
         # fully-connected (feed-forward) layer followed by residual connection
@@ -71,6 +82,7 @@ class Encoder(Module):
     Whole encoder, composed of repeated encoder blocks which do not share
     parameters.
     """
+
     def __init__(self, base_block, n_clones) -> None:
         super(Encoder, self).__init__()
         self.layer_blocks = get_clones(module_to_be_cloned=base_block,
@@ -78,13 +90,24 @@ class Encoder(Module):
         self.normalization_layer = LayerNorm(base_block.feature_dimension)
         # TODO: see TODO below
 
-    def forward(self, src_features: Tensor, mask: Tensor) -> Tensor:
+    def forward(self, src_features: Tensor, src_mask: Tensor) -> Tensor:
         """
         Forward propagation.
+
+        Tensor Shapes:
+
+            Args:
+                src_features: (batch size, src. sequence_length, n. features)
+                src_mask: (batch size, 1, src. sequence_length)
+
+            Returns:
+                (batch_size, src_sequence_length, n_features)
+
         """
         # forwarding inputs throught all encoder blocks:
         for layer_block in self.layer_blocks:
-            src_features = layer_block(src_features=src_features, mask=mask)
+            src_features = layer_block(src_features=src_features,
+                                       src_mask=src_mask)
         return self.normalization_layer(src_features)
         # TODO: understand why this last, additional normalization and why
         # it is not to be masked

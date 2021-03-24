@@ -130,8 +130,6 @@ class DataParallelLossMinimizer:
         # the respective sub-mini-batches, on the respective devices:
         gradients_from_devices = [[] for _ in scattered_logits]
 
-        ###########################################################################################################
-
         # TODO: understand
         for i in range(0, scattered_logits[0].dim(1), self.chunk_size):
 
@@ -160,8 +158,6 @@ class DataParallelLossMinimizer:
                                 target_device=self.device_ids[0])
             loss = loss.sum()[0] / n_mini_batch_tokens
             total_loss += loss.data[0]
-
-        ###########################################################################################################
 
             # computing gradients, for updating weights later, only when an
             # optimizer is passed:
@@ -216,56 +212,6 @@ class DataParallelLossMinimizer:
         # returning the loss value reverted back to the original,
         # un-normalized scale:
         return total_loss.item() * n_mini_batch_tokens
-
-        ###########################################################################################################
-        
-    # def __call__(self, out, targets, normalize):
-        # total = 0.0
-        # generator = nn.parallel.replicate(self.generator, 
-        #                                         devices=self.devices)
-        # out_scatter = nn.parallel.scatter(out, 
-        #                                   target_gpus=self.devices)
-        # out_grad = [[] for _ in out_scatter]
-        # targets = nn.parallel.scatter(targets, 
-        #                               target_gpus=self.devices)
-
-        # # Divide generating into chunks.
-        # chunk_size = self.chunk_size
-        # for i in range(0, out_scatter[0].size(1), chunk_size):
-            # # Predict distributions
-            # out_column = [[Variable(o[:, i:i+chunk_size].data, 
-            #                         requires_grad=self.opt is not None)] 
-            #                for o in out_scatter]
-            # gen = nn.parallel.parallel_apply(generator, out_column)
-
-            # # Compute loss. 
-            # y = [(g.contiguous().view(-1, g.size(-1)), 
-            #       t[:, i:i+chunk_size].contiguous().view(-1)) 
-            #      for g, t in zip(gen, targets)]
-            # loss = nn.parallel.parallel_apply(self.criterion, y)
-
-            # Sum and normalize loss
-            # l = nn.parallel.gather(loss, 
-            #                        target_device=self.devices[0])
-            # l = l.sum()[0] / normalize
-            # total += l.data[0]
-
-            # # Backprop loss to output of transformer
-            # if self.opt is not None:
-            #     l.backward()
-                # for j, l in enumerate(loss):
-                #     out_grad[j].append(out_column[j][0].grad.data.clone())
-
-        # # Backprop all loss through transformer.            
-        # if self.opt is not None:
-            # out_grad = [Variable(torch.cat(og, dim=1)) for og in out_grad]
-            # o1 = out
-            # o2 = nn.parallel.gather(out_grad, 
-            #                         target_device=self.devices[0])
-            # o1.backward(gradient=o2)
-            # self.opt.step()
-            # self.opt.optimizer.zero_grad()
-        # return total * normalize
 
 
 def execute_training_epoch(dataset_iterator: Generator[MiniBatch, None, None],
