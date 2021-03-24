@@ -22,7 +22,7 @@ from transformer.architecture.encoder import Encoder, EncoderBlock,\
     EncoderBlockBuildingBlocks
 from transformer.architecture.decoder import Decoder, DecoderBlock,\
     DecoderBlockBuildingBlocks
-from transformer.architecture.seq2seq import EncoderDecoder,\
+from transformer.architecture.seq2seq import Seq2Seq,\
     Seq2SeqBuildingBlocks
 
 from transformer.training_and_inference.data import\
@@ -184,7 +184,7 @@ class Transformer:
             tgt_embedder=tgt_embedder,
             log_softmax_layer=log_softmax_layer
         )
-        model = EncoderDecoder(
+        model = Seq2Seq(
             building_blocks=building_blocks
         )
 

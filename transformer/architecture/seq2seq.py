@@ -21,14 +21,14 @@ Seq2SeqBuildingBlocks = NamedTuple(
 )
 
 
-class EncoderDecoder(Module):
+class Seq2Seq(Module):
     """
     Base architecture for encoder-decoder sequence-to-sequence Transformer
     models.
     """
     def __init__(self, building_blocks: Seq2SeqBuildingBlocks) -> None:
 
-        super(EncoderDecoder, self).__init__()
+        super(Seq2Seq, self).__init__()
         self.encoder = building_blocks.encoder
         self.decoder = building_blocks.decoder
         self.src_embedder = building_blocks.src_embedder

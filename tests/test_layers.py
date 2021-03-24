@@ -5,8 +5,16 @@ Utilities for testing each single layer kind independently.
 
 from unittest import TestCase
 
+from torch import long as torch_long, rand as torch_rand, tensor
+
+from transformer.architecture.attention import allowed_positions_to_attend,\
+    MultiHeadAttention, scaled_dot_product_attention
+from transformer.architecture.base import get_clones, LayerNorm, LogSoftmax,\
+    PositionWiseFeedForward, ResidualConnectionAndLayerNorm
 from transformer.architecture.embedding import Embedder, PositionalEncoding
-from transformer.transformer import HyperparameterDict
+from transformer.architecture.encoder import Encoder, EncoderBlock
+from transformer.architecture.decoder import Decoder, DecoderBlock
+from transformer.architecture.seq2seq import Seq2Seq
 
 
 SRC_VOCABULARY_DIMENSION = 9000
@@ -22,20 +30,21 @@ DROPOUT_PROB = 0.1
 
 class TestEmbedder(TestCase):
 
-    # def setUpClass(self):
-    #     """
-    #     Avoid redundant, time-consuming, equivalent setups when testing across
-    #     the different methods, that can use common instantiations.
-    #     """
-    
-    def setUp(self):
+    def setUpClass(self):
         """
-        Setup executed before every method (test).
+        Avoid redundant, time-consuming, equivalent setups when testing across
+        the different methods, that can use common instantiations.
         """
         self.layer = Embedder(
             token_representation_dimension=REPRESENTATION_DIMENSION,
             vocabulary_dimension=SRC_VOCABULARY_DIMENSION
         )
+        self.input_tensor = torch_rand()
+    
+    # def setUp(self):
+    #     """
+    #     Setup executed before every method (test).
+    #     """
 
     def test_tensor_shapes(self):
         """
@@ -60,10 +69,7 @@ class TestEmbedder(TestCase):
 
 class TestPositionalEncoding(TestCase):
     
-    def setUp(self):
-        """
-        Setup executed before every method (test).
-        """
+    
         self.layer = PositionalEncoding(
             token_representation_dimension=REPRESENTATION_DIMENSION,
             dropout_prob=DROPOUT_PROB,
