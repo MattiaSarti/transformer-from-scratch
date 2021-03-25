@@ -61,15 +61,14 @@ class DecoderBlock(Module):
         Tensor Shapes:
 
             Args:
-                tgt_features: (batch size, tgt. sequence length, n. features)
-                src_encoded_tokens: (batch size, src. sequence length,
-                    n. features)
-                tgt_mask: (batch size, tgt. sequence length,
-                    tgt. sequence length)
-                src_mask: (batch size, 1, src. sequence length)
+                tgt_features: (batch size, sequence length - 1, n. features)
+                src_encoded_tokens: (batch size, sequence length, n. features)
+                tgt_mask: (batch size, sequence length - 1,
+                    sequence length - 1)
+                src_mask: (batch size, 1, sequence length)
 
             Returns:
-                (batch size, tgt. sequence_length, n. features)
+                (batch size, sequence_length - 1, n. features)
 
         """
         # self-attention, towards decoder token positions themselves, followed
@@ -119,15 +118,14 @@ class Decoder(Module):
         Tensor Shapes:
 
             Args:
-                tgt_features: (batch size, tgt. sequence length, n. features)
-                src_encoded_tokens: (batch size, src. sequence length,
-                    n. features)
-                tgt_mask: (batch size, tgt. sequence length,
-                    tgt. sequence length)
-                src_mask: (batch size, 1, tgt. sequence length)
+                tgt_features: (batch size, sequence length - 1, n. features)
+                src_encoded_tokens: (batch size, sequence length, n. features)
+                tgt_mask: (batch size, sequence length - 1,
+                    sequence length - 1)
+                src_mask: (batch size, 1, sequence length)
 
             Returns:
-                (batch size, tgt. sequence_length, n features)
+                (batch size, sequence_length - 1, n features)
 
         """
         # forwarding inputs throught all decoder blocks:

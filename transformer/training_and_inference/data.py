@@ -8,6 +8,7 @@ from typing import Generator, Tuple
 from numpy import int64 as numpy_int64
 from numpy.random import randint
 from torch import from_numpy, Tensor
+from torch.cuda import is_available as cuda_is_available
 from torchtext.data import batch as torchtext_batch, Field, Iterator
 from torchtext.datasets import IWSLT
 
@@ -128,13 +129,15 @@ class MiniBatchHandler:
 
 
 def dataset_builder_copy_task(sequence_length: int, vocabulary_size: int,
-                              mini_batch_size: int, n_mini_batches: int)\
+                              mini_batch_size: int, n_mini_batches: int,
+                              gpu_if_possible: bool = True)\
         -> Generator[MiniBatch, None, None]:
     """
     Build generator yielding dummy samples and labels for a toy source-target
     copy task.
     """
     for _ in range(n_mini_batches):
+
         # random token indices, excluding 0 because assumed to represent the
         # padding token:
         samples = from_numpy(
@@ -146,10 +149,22 @@ def dataset_builder_copy_task(sequence_length: int, vocabulary_size: int,
                 dtype=numpy_int64
             )
         )
+
+        # selecting the device handling computations:
+        if gpu_if_possible:
+            # employing a GPU if possible:
+            device = 'cuda:0' if cuda_is_available() else 'cpu'
+        else:
+            device = 'cpu'
+
+        # moving samples to such device:
+        samples = samples.to(device)
+
         # assuming all sequences start with the same token, an hypothetical
         # <s> token that can also be found in other positions of the sequences
         # in this toy task:
         samples[:, 0] = 1
+
         # yielding mini-batch made of identical source and target samples
         # (i.e. labels equal samples):
         yield MiniBatch(

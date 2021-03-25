@@ -103,7 +103,8 @@ if __name__ == '__main__':
         src_sequences=src_sequence,
         src_masks=src_sequence_mask,
         tgt_bos_token=1,
-        decoding_method='greedy'
+        decoding_method='greedy',
+        gpu_if_possible=True
     )
 
     print_src_vs_tgt(
@@ -115,12 +116,13 @@ if __name__ == '__main__':
 
     # training the model:
     model.train_on_toy_copy_task(
-        n_epochs=100,
+        n_epochs=10,
         epoch_samples=30*20,
         mini_batch_size=30,
         label_smoothing_factor=0.0,
         learning_rate_n_warmup_steps=400,
-        learning_rate_amplification_factor=1
+        learning_rate_amplification_factor=1,
+        gpu_if_possible=True
     )
 
     # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -131,7 +133,8 @@ if __name__ == '__main__':
         src_sequences=src_sequence,
         src_masks=src_sequence_mask,
         tgt_bos_token=1,
-        decoding_method='greedy'
+        decoding_method='greedy',
+        gpu_if_possible=True
     )
 
     print_src_vs_tgt(
@@ -154,7 +157,8 @@ if __name__ == '__main__':
             src_sequences=src_sequence,
             src_masks=src_sequence_mask,
             tgt_bos_token=1,
-            decoding_method='greedy'
+            decoding_method='greedy',
+            gpu_if_possible=True
         )
 
         print_src_vs_tgt(

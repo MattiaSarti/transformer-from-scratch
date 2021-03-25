@@ -6,10 +6,9 @@ Transformer, with methods for initialization, training and inference.
 from copy import deepcopy
 from typing import Tuple, TypedDict
 
-from torch import cat as torch_cat
-from torch import Tensor
-from torch import max as torch_max
-from torch import ones as torch_ones
+from torch import cat as torch_cat, max as torch_max, ones as torch_ones,\
+    Tensor
+from torch.cuda import is_available as cuda_is_available
 from torch.nn import DataParallel, Sequential
 from torch.nn.init import xavier_uniform_
 from torch.optim import Adam
@@ -212,12 +211,28 @@ class Transformer:
                 self,
                 src_sequences: Tensor,
                 src_masks: Tensor,
-                tgt_bos_token: Tensor,
-                decoding_method: str = 'greedy'
+                tgt_bos_token: int,
+                decoding_method: str = 'greedy',
+                gpu_if_possible: bool = True
                 ) -> Tensor:
         """
         Predict target token sequences from source token sequences.
         """
+        # selecting the device handling computations:
+        if gpu_if_possible:
+            # employing a GPU if possible:
+            device = 'cuda:0' if cuda_is_available() else 'cpu'
+        else:
+            device = 'cpu'
+
+        # moving model parameters and buffers to such device:
+        self.model.to(device)
+
+        # moving inputs to such device:
+        src_sequences = src_sequences.to(device)
+        src_masks = src_masks.to(device)
+        print()
+
         # switching to inference mode:
         self.model.eval()
 
@@ -251,7 +266,7 @@ class Transformer:
                     tgt_mask=allowed_positions_to_attend(
                         # positions to attend equal computed target tokens:
                         n_positions=cumulative_tgt_sequences.size(1)
-                    )
+                    ).to(device)
                 )
 
                 # turning the logits of next (last) tokens in the sequences
@@ -282,12 +297,8 @@ class Transformer:
 
             return cumulative_tgt_sequences
 
-        # elif False:  # TODO
-
-        #     pass
-
-        raise Exception("Unknown decoding method for prediction: "
-                        + decoding_method)
+        raise NotImplementedError("Unavailable decoding method: "
+                                  + decoding_method)
 
     def train_on_toy_copy_task(
                 self,
@@ -298,7 +309,8 @@ class Transformer:
                 learning_rate_n_warmup_steps: int = 4000,
                 learning_rate_amplification_factor: float = 2,
                 adam_betas: Tuple[float, float] = (0.9, 0.98),
-                adam_epsilon: float = 1e-9
+                adam_epsilon: float = 1e-9,
+                gpu_if_possible: bool = True
                 ) -> None:
         """
         Training the model on a toy task: copying the source sentence, with an
@@ -306,7 +318,7 @@ class Transformer:
         """
         assert self.src_vocabulary_dimension == self\
             .tgt_vocabulary_dimension, "For this toy task, the source and"\
-            + " target vocabularies have to  be shared."
+            + " target vocabularies have to be shared."
 
         # for this toy task, the padding token index has to be 0:
         padding_token = 0
@@ -316,6 +328,23 @@ class Transformer:
             padding_token=padding_token,
             smoothing_factor=label_smoothing_factor
         )
+
+        # selecting the device handling computations:
+        if gpu_if_possible:
+            # employing a GPU if possible:
+            device = 'cuda:0' if cuda_is_available() else 'cpu'
+        else:
+            device = 'cpu'
+
+        # moving the model parameters and buffers to such device:
+        self.model.to(device)
+
+        # moving the criterion parameters and buffers to such device:
+        criterion.to(device)
+
+        # NOTE: this way, the optimizer handler operates on objects that
+        # are already on the device of interest, so it does not have to be
+        # moved there
 
         optimizer_handler = OptimizerHandler(
             optimizer=Adam(
@@ -344,7 +373,8 @@ class Transformer:
                     sequence_length=self.max_sequence_length,
                     vocabulary_size=self.src_vocabulary_dimension,
                     mini_batch_size=mini_batch_size,
-                    n_mini_batches=(int(epoch_samples / mini_batch_size))
+                    n_mini_batches=(int(epoch_samples / mini_batch_size)),
+                    gpu_if_possible=gpu_if_possible
                 ),
                 model=self.model,
                 loss_minimizer=LossMinimizer(
@@ -364,7 +394,8 @@ class Transformer:
                     sequence_length=self.max_sequence_length,
                     vocabulary_size=self.src_vocabulary_dimension,
                     mini_batch_size=mini_batch_size,
-                    n_mini_batches=(int(n_epochs / mini_batch_size) + 1)
+                    n_mini_batches=(int(n_epochs / mini_batch_size) + 1),
+                    gpu_if_possible=gpu_if_possible
                 ),
                 model=self.model,
                 loss_minimizer=LossMinimizer(
@@ -432,7 +463,6 @@ class Transformer:
 
     #     # NOTE: the optimizer handler operates on objects that are already
     #     # on GPU(s), so it does not need to be moved there
-    #     # TODO: am I right?
 
     #     # NOTE: the model must have its parameters and buffers on
     #     # device_ids[0] before parallelizing it, and so does it now

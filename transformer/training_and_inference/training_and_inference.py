@@ -251,8 +251,8 @@ def execute_training_epoch(dataset_iterator: Generator[MiniBatch, None, None],
 
         if verbose:
 
-            # displaying loss every 50 mini-batches:
-            display_every = 50
+            # displaying loss every tot. mini-batches:
+            display_every = 50  # [n. mini-batches]
             if i % display_every == 0:
                 toc = time()
                 print(("Mini-batches done: {n} - Loss for the current mini-" +

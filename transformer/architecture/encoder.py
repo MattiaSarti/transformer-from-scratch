@@ -54,11 +54,11 @@ class EncoderBlock(Module):
         Tensor Shapes:
 
             Args:
-                src_features: (batch size, src. sequence_length, n features)
-                src_mask: (batch size, 1, src. sequence length)
+                src_features: (batch size, sequence_length, n features)
+                src_mask: (batch size, 1, sequence length)
 
             Returns:
-                (batch size, src. sequence length, n. features)
+                (batch size, sequence length, n. features)
 
         """
         # self-attention, towards encoder token positions themselves, followed
@@ -97,11 +97,11 @@ class Encoder(Module):
         Tensor Shapes:
 
             Args:
-                src_features: (batch size, src. sequence_length, n. features)
-                src_mask: (batch size, 1, src. sequence_length)
+                src_features: (batch size, sequence_length, n. features)
+                src_mask: (batch size, 1, sequence_length)
 
             Returns:
-                (batch_size, src_sequence_length, n_features)
+                (batch size, sequence length, n. features)
 
         """
         # forwarding inputs throught all encoder blocks:

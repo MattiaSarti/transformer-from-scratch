@@ -39,10 +39,10 @@ class LogSoftmax(Module):
         Tensor Shapes:
 
             Args:
-                logits: (batch size, sequence length, n. features)
+                logits: (batch size, sequence length - 1, n. features)
 
             Returns:
-                (batch size, sequence length, vocabulary size)
+                (batch size, sequence length - 1, vocabulary size)
 
         """
         return log_softmax(self.linear_layer(logits), dim=-1)
@@ -66,10 +66,12 @@ class LayerNorm(Module):
         Tensor Shapes:
 
             Args:
-                features: (batch size, sequence length, n. features)
+                features: (batch size, sequence length | sequence length - 1,
+                    n. features)
 
             Returns:
-                (batch size, sequence length, n. features)
+                (batch size, sequence length | sequence length - 1,
+                    n. features)
 
         """
         mean = features.mean(dim=-1, keepdim=True)
@@ -98,10 +100,12 @@ class ResidualConnectionAndLayerNorm(Module):
         Tensor Shapes:
 
             Args:
-                features: (batch size, sequence length, n. features)
+                features: (batch size, sequence length | sequence length - 1,
+                    n. features)
 
             Returns:
-                (batch size, sequence length, n. features)
+                (batch size, sequence length | sequence length - 1,
+                    n. features)
 
         """
         return features + self.dropout_layer(
@@ -143,10 +147,12 @@ class PositionWiseFeedForward(Module):
         Tensor Shapes:
 
             Args:
-                features: (batch size, sequence length, n. features)
+                features: (batch size, sequence length | sequence length - 1,
+                    n. features)
 
             Returns:
-                (batch size, sequence length, n. features)
+                (batch size, sequence length | sequence length - 1,
+                    n. features)
 
         """
         return self.linear_layer_2(
