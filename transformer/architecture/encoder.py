@@ -15,7 +15,7 @@ from transformer.architecture.base import get_clones, LayerNorm,\
 EncoderBlockBuildingBlocks = NamedTuple(
     'EncoderBuildingBlocks',
     [
-        ('self_multi_headed_attention_layer', Module),
+        ('self_multi_head_attention_layer', Module),
         ('fully_connected_layer', Module)
     ]
 )
@@ -24,7 +24,7 @@ EncoderBlockBuildingBlocks = NamedTuple(
 class EncoderBlock(Module):
     """
     Core encoder block, composed of, from inputs to outputs:
-    - multi-headed self-attention layer;
+    - multi-head self-attention layer;
     - residual connection;
     - layer-normalization layer;
     - fully-connected (feed-forward) layer;
@@ -36,8 +36,8 @@ class EncoderBlock(Module):
                  feature_dimension: int, dropout_prob: float) -> None:
         super(EncoderBlock, self).__init__()
         self.feature_dimension = feature_dimension
-        self.self_multi_headed_attention_layer = \
-            building_blocks.self_multi_headed_attention_layer
+        self.self_multi_head_attention_layer = \
+            building_blocks.self_multi_head_attention_layer
         self.fully_connected_layer = building_blocks.fully_connected_layer
         self.residual_connection_blocks = get_clones(
             module_to_be_cloned=ResidualConnectionAndLayerNorm(
@@ -65,7 +65,7 @@ class EncoderBlock(Module):
         # by residual connection and layer normalization:
         src_features = self.residual_connection_blocks[0](
             src_features,
-            lambda x: self.self_multi_headed_attention_layer(
+            lambda x: self.self_multi_head_attention_layer(
                 query_tokens=x,
                 key_or_value_tokens=x,
                 mask=src_mask

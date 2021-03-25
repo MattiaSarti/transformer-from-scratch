@@ -20,6 +20,7 @@ class MiniBatch:
     """
     Mini-batch of samples.
     """
+
     @staticmethod
     def build_mask(tgt_tokens: Tensor, padding_token: int) -> Tensor:
         """
@@ -61,18 +62,18 @@ class MiniBatchHandler:
     """
     TODO
     """
+
     def __init__(self, max_n_src_tokens_in_mini_batch: int,
                  max_n_tgt_tokens_in_mini_batch: int) -> None:
         self.max_n_src_tokens_in_mini_batch = max_n_src_tokens_in_mini_batch
         self.max_n_tgt_tokens_in_mini_batch = max_n_tgt_tokens_in_mini_batch
 
     def get_current_mini_batch_size(self, new, count: int):
+        # TODO: add data type & understand why they add an unused, additional
+        # argument called 'sofar'
         """
         TODO
         """
-        # TODO: add data type & understand why they add an unused, additional
-        # argument called 'sofar'
-
         # resetting initial values when starting a new mini-batch size
         # monitoring (during construction):
         if count == 1:
@@ -99,6 +100,7 @@ class MiniBatchHandler:
 #     cluster samples with a similar length in the same mini-batches, reducing
 #     padding requirements to the minimum.
 #     """
+
 #     def create_batches(self):
 
 #         if self.train:
@@ -132,7 +134,6 @@ def dataset_builder_copy_task(sequence_length: int, vocabulary_size: int,
     Build generator yielding dummy samples and labels for a toy source-target
     copy task.
     """
-
     for _ in range(n_mini_batches):
         # random token indices, excluding 0 because assumed to represent the
         # padding token:
@@ -161,7 +162,6 @@ def dataset_builder_copy_task(sequence_length: int, vocabulary_size: int,
 #     """
 #     .
 #     """
-
 #     min_vocabulary_counts = 2
 
 #     tokenizer = Tokenizer(src_language='de', tgt_language='en')

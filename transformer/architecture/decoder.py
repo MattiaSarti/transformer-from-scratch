@@ -15,8 +15,8 @@ from transformer.architecture.base import get_clones, LayerNorm,\
 DecoderBlockBuildingBlocks = NamedTuple(
     'DecoderBuildingBlocks',
     [
-        ('self_multi_headed_attention_layer', Module),
-        ('source_multi_headed_attention_layer', Module),
+        ('self_multi_head_attention_layer', Module),
+        ('source_multi_head_attention_layer', Module),
         ('fully_connected_layer', Module)
     ]
 )
@@ -25,10 +25,10 @@ DecoderBlockBuildingBlocks = NamedTuple(
 class DecoderBlock(Module):
     """
     Core decoder block, composed of, from inputs to outputs:
-    - multi-headed self-attention layer;
+    - multi-head self-attention layer;
     - residual connection;
     - layer-normalization layer;
-    - multi-headed source-attention layer;
+    - multi-head source-attention layer;
     - residual connection;
     - layer-normalization layer;
     - fully-connected (feed-forward) layer;
@@ -40,10 +40,10 @@ class DecoderBlock(Module):
                  feature_dimension: int, dropout_prob: float) -> None:
         super(DecoderBlock, self).__init__()
         self.feature_dimension = feature_dimension
-        self.self_multi_headed_attention_layer = \
-            building_blocks.self_multi_headed_attention_layer
-        self.source_multi_headed_attention_layer = \
-            building_blocks.source_multi_headed_attention_layer
+        self.self_multi_head_attention_layer = \
+            building_blocks.self_multi_head_attention_layer
+        self.source_multi_head_attention_layer = \
+            building_blocks.source_multi_head_attention_layer
         self.fully_connected_layer = building_blocks.fully_connected_layer
         self.residual_connection_blocks = get_clones(
             module_to_be_cloned=ResidualConnectionAndLayerNorm(
@@ -76,7 +76,7 @@ class DecoderBlock(Module):
         # by residual connection and layer normalization:
         tgt_features = self.residual_connection_blocks[0](
             tgt_features,
-            lambda x: self.self_multi_headed_attention_layer(
+            lambda x: self.self_multi_head_attention_layer(
                 query_tokens=x,
                 key_or_value_tokens=x,
                 mask=tgt_mask
@@ -86,7 +86,7 @@ class DecoderBlock(Module):
         # positions, followed by residual connection and layer normalization:
         tgt_features = self.residual_connection_blocks[1](
             tgt_features,
-            lambda x: self.source_multi_headed_attention_layer(
+            lambda x: self.source_multi_head_attention_layer(
                 query_tokens=x,
                 key_or_value_tokens=src_encoded_tokens,
                 mask=src_mask
@@ -102,8 +102,8 @@ class Decoder(Module):
     """
     Whole decoder, composed of repeated decoder blocks which do not share
     parameters.
-
     """
+
     def __init__(self, base_block, n_clones) -> None:
         super(Decoder, self).__init__()
         self.layer_blocks = get_clones(module_to_be_cloned=base_block,

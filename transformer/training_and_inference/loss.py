@@ -20,6 +20,7 @@ class LabelSmoothedLoss(Module):
     than the value yielding the loss minimum. Label smoothing aims at avoiding
     overfitting, it is a form of regularization.
     """
+
     def __init__(self, softmax_dimension: int, padding_token: int,
                  smoothing_factor: float) -> None:
         super(LabelSmoothedLoss, self).__init__()

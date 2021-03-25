@@ -84,7 +84,7 @@ def scaled_dot_product_attention(queries: Tensor, keys: Tensor,
 
 class MultiHeadAttention(Module):
     """
-    Multi-Headed Attention layer.
+    Multi-Head Attention layer.
     """
 
     def __init__(self, n_attention_heads: int,
@@ -129,7 +129,6 @@ class MultiHeadAttention(Module):
                 (batch size, sequence length, n. features)
 
         """
-
         n_mini_batches = query_tokens.size(0)
 
         # if input masked:

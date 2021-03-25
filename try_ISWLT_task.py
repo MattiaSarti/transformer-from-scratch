@@ -10,15 +10,15 @@ from random import seed as random_seed
 from numpy.random import seed as numpy_seed
 from torch import manual_seed
 
+from transformer.training_and_inference.reproducibility import\
+    make_results_reproducible
 from .transformer.transformer import Transformer
 
 
 if __name__ == '__main__':
 
     # for reproducible results:
-    _ = manual_seed(0)
-    _ = numpy_seed(0)
-    random_seed(0)
+    make_results_reproducible()
 
     # iterators for the training and validation sets:
     ...
@@ -30,13 +30,5 @@ if __name__ == '__main__':
     max_sequence_length = 100  # [number of tokens]
 
     model = Transformer(
-        src_vocabulary_dimension=src_vocabulary_dimension,
-        tgt_vocabulary_dimension=tgt_vocabulary_dimension,
-        n_encoder_blocks=6,
-        n_decoder_blocks=6,
-        representation_dimension=512,
-        feedforward_dimension=2048,
-        n_attention_heads=8,
-        max_sequence_length=max_sequence_length,
-        dropout_prob=0.1
+        ...
     )

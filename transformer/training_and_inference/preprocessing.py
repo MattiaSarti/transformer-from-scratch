@@ -7,6 +7,7 @@ class Tokenizer:
     """
     Source and target tokenizers.
     """
+
     def __init__(self, src_language: str = 'de', tgt_language: str = 'en')\
             -> None:
         super(Tokenizer, self).__init__()
@@ -20,13 +21,17 @@ class Tokenizer:
         self.padding_token = "<blank>"  # padding token
 
     def tokenize_src(self, text: str) -> List[str]:
-        "Tokenize source language text."
+        """
+        Tokenize source language text.
+        """
         return [
             token for token in self.src_language_model.tokenizer(text)
         ]
 
     def tokenize_tgt(self, text: str) -> List[str]:
-        "Tokenize target language text."
+        """
+        Tokenize target language text.
+        """
         return [
             token for token in self.tgt_language_model.tokenizer(text)
         ]

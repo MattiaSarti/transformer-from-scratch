@@ -37,6 +37,7 @@ class HyperparameterDict(TypedDict):
     """
     Initialization hyperparemeters with their data types.
     """
+
     src_vocabulary_dimension: int
     tgt_vocabulary_dimension: int
     n_encoder_blocks: int
@@ -52,6 +53,7 @@ class Transformer:
     """
     Transformer.
     """
+
     def __init__(
                 self,
                 src_vocabulary_dimension: int,
@@ -108,7 +110,6 @@ class Transformer:
         architecture specified by the input hyperparameters, with newly
         initialized weights.
         """
-
         # building the architecture:
 
         # instantiating (some of) the base layers/blocks of the architecture:
@@ -117,7 +118,7 @@ class Transformer:
             dropout_prob=self.dropout_prob,
             max_sequence_length=self.max_sequence_length
         )
-        multi_headed_attention_later = MultiHeadAttention(
+        multi_head_attention_later = MultiHeadAttention(
             n_attention_heads=self.n_attention_heads,
             token_representation_dimension=self.representation_dimension,
             dropout_prob=self.dropout_prob
@@ -149,8 +150,8 @@ class Transformer:
         )
         base_encoder_block = EncoderBlock(
             building_blocks=EncoderBlockBuildingBlocks(
-                self_multi_headed_attention_layer=deepcopy(
-                    multi_headed_attention_later),
+                self_multi_head_attention_layer=deepcopy(
+                    multi_head_attention_later),
                 fully_connected_layer=deepcopy(feedforward_layer),
             ),
             feature_dimension=self.representation_dimension,
@@ -162,10 +163,10 @@ class Transformer:
         )
         base_decoder_block = DecoderBlock(
             building_blocks=DecoderBlockBuildingBlocks(
-                self_multi_headed_attention_layer=deepcopy(
-                    multi_headed_attention_later),
-                source_multi_headed_attention_layer=deepcopy(
-                    multi_headed_attention_later),
+                self_multi_head_attention_layer=deepcopy(
+                    multi_head_attention_later),
+                source_multi_head_attention_layer=deepcopy(
+                    multi_head_attention_later),
                 fully_connected_layer=deepcopy(feedforward_layer)
             ),
             feature_dimension=self.representation_dimension,
@@ -392,7 +393,6 @@ class Transformer:
     #     Training the model on an IWSLT 2016 TED talks: the { German -> English }
     #     translation task.
     #     """
-
     #     # identifying GPU devices used to parallelize operations:
     #     device_ids = [0, 1, 2, 3]
 

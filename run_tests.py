@@ -12,4 +12,4 @@ from tests.test_model import *
 if __name__ == '__main__':
 
     # running tests:
-    unittest_main()
+    unittest_main(verbosity=2)

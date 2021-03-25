@@ -21,6 +21,7 @@ class LossMinimizer:
     Take care of loss computation, backpropagation and weight update during a
     single training iteration (for single mini-batch in a given epoch).
     """
+
     def __init__(self, final_log_softmax_layer: Module, criterion: Module,
                  optimizer_handler: OptimizerHandler = None) -> float:
         self.final_log_softmax_layer = final_log_softmax_layer
@@ -29,12 +30,11 @@ class LossMinimizer:
 
     def __call__(self, logits: Tensor, labels: Tensor, n_mini_batch_tokens:
                  int) -> float:
+        # TODO: check returned data type - float or Tensor?
         """
         Compute loss from log-probabilities, and, if an optimizer handler is
         passed, backpropagate gradient and update weights to minimize loss.
         """
-        # TODO: check returned data type - float or Tensor?
-
         # computing final softmax log-probabilities:
         log_probabilities = self.final_log_softmax_layer(logits)
         # computing loss value, flattening all outputs of all sequences along
@@ -83,6 +83,7 @@ class DataParallelLossMinimizer:
     single training iteration (for single mini-batch in a given epoch) among
     different GPUS according to a data-parallel strategy.
     """
+
     def __init__(self, final_log_softmax_layer: Module, criterion: Module,
                  device_ids: List[int], chunk_size: int = 5, 
                  optimizer_handler: OptimizerHandler = None) -> None:
@@ -98,7 +99,6 @@ class DataParallelLossMinimizer:
         Compute loss from log-probabilities, and, if an optimizer handler is
         passed, backpropagate gradient and update weights to minimize loss.
         """
-
         # TODO: understand
         total = 0.0
 

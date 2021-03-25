@@ -5,6 +5,7 @@ class OptimizerHandler:
     """
     Hangling an optimizer with the defined learning rate schedule.
     """
+
     def __init__(self, optimizer: Adam, n_warmup_steps: int,
                  amplification_factor: float, model_hidden_dimension:
                  int) -> None:

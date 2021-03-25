@@ -5,14 +5,13 @@ achieved.
 """
 
 
-from random import seed as random_seed
 from typing import Tuple
 
-from numpy.random import seed as numpy_seed
-from torch import manual_seed as torch_manual_seed, tensor, Tensor
 from torch import cat as torch_cat, long as torch_long, ones as torch_ones,\
-    unsqueeze as torch_unsqueeze, zeros as torch_zeros
+    unsqueeze as torch_unsqueeze, tensor, Tensor, zeros as torch_zeros
 
+from transformer.training_and_inference.reproducibility import\
+    make_results_reproducible
 from transformer.transformer import Transformer
 
 
@@ -56,16 +55,6 @@ def get_sequence_from_user() -> Tuple[Tensor, Tensor]:
     )
 
     return src_sequence, src_sequence_mask
-
-
-def make_results_reproducible():
-    """
-    Making the following instructions produce purely deterministic outputs
-    by fixing all the relevant seeds:
-    """
-    _ = torch_manual_seed(0)
-    _ = numpy_seed(0)
-    random_seed(0)
 
 
 def print_src_vs_tgt(src_sequence: Tensor, tgt_sequence_prediction: Tensor)\
