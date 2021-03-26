@@ -26,7 +26,7 @@ class MiniBatch:
     def build_mask(tgt_tokens: Tensor, padding_token: int) -> Tensor:
         """
         Build masks of target positions allowed to be attended by the decoder,
-        position by position:
+        position by position.
         """
         tgt_mask = (tgt_tokens != padding_token).unsqueeze(dim=-2)
         tgt_mask = tgt_mask & (

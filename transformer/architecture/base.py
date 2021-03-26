@@ -45,6 +45,9 @@ class LogSoftmax(Module):
                 (batch size, sequence length - 1, vocabulary size)
 
         """
+        # NOTE: the linear layer transformation is applied to the last channel
+        # of the n-dimensional (n > 2) tensor, i.e. separately for each token
+        # position (and so does the log-softmax activation function as well):
         return log_softmax(self.linear_layer(logits), dim=-1)
 
 

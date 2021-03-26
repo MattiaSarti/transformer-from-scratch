@@ -13,7 +13,7 @@ from torch.backends import cudnn
 
 def make_results_reproducible(model_is_convolutional: bool = False) -> None:
     """
-    Making the subsequent instructions produce purely deterministic outputs
+    Make the subsequent instructions produce purely deterministic outputs
     by fixing all the relevant seeds:
     """
     random_seed(0)

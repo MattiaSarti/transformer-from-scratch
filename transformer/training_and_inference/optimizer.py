@@ -3,7 +3,7 @@ from torch.optim import Adam
 
 class OptimizerHandler:
     """
-    Hangling an optimizer with the defined learning rate schedule.
+    Handle an optimizer with the defined learning rate schedule.
     """
 
     def __init__(self, optimizer: Adam, n_warmup_steps: int,
