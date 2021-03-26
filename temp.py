@@ -9,7 +9,7 @@ from torch import cat as torch_cat, long as torch_long, ones as torch_ones,\
 from transformer.transformer import Transformer
 
 
-max_sequence_length = 100  # [number of tokens]
+max_sequence_length = 20  # [number of tokens]
 
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
@@ -17,8 +17,8 @@ max_sequence_length = 100  # [number of tokens]
 model = Transformer(
     src_vocabulary_dimension=10000,
     tgt_vocabulary_dimension=10000,
-    n_encoder_blocks=6,
-    n_decoder_blocks=6,
+    n_encoder_blocks=2,  # 6,
+    n_decoder_blocks=2,  # 6,
     representation_dimension=512,
     feedforward_dimension=2048,
     n_attention_heads=8,
@@ -29,9 +29,10 @@ model = Transformer(
 # training the model:
 model.train_on_toy_copy_task(
     n_epochs=1,
-    epoch_samples=30*2,
-    mini_batch_size=30,
+    epoch_samples=2*2,
+    mini_batch_size=2,
     label_smoothing_factor=0.0,
     learning_rate_n_warmup_steps=400,
-    learning_rate_amplification_factor=1
+    learning_rate_amplification_factor=1,
+    gpu_if_possible=True
 )
