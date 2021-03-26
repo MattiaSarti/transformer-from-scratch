@@ -295,6 +295,9 @@ class Transformer:
                 )
                 # FIXME: shapes not understood
 
+                # TODO: truncate the different predicted sequences in the
+                # mini-batch from their respective first padding token on
+
             return cumulative_tgt_sequences
 
         raise NotImplementedError("Unavailable decoding method: "
@@ -314,7 +317,9 @@ class Transformer:
                 ) -> None:
         """
         Training the model on a toy task: copying the source sentence, with an
-        identical target.
+        identical target. Teacher forcing is applied, avoiding sequential
+        decoding and improving training convergence in spite of accuracy
+        at inference time (with actual auto-regressive outputs).
         """
         assert self.src_vocabulary_dimension == self\
             .tgt_vocabulary_dimension, "For this toy task, the source and"\
