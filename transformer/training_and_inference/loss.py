@@ -34,6 +34,7 @@ class LabelSmoothedLoss(Module):
         # non-target tokens in the vocabulary (padding token excluded)
         self.redistributed_probability_each = smoothing_factor /\
             (softmax_dimension - 2)
+
         # loss criterion - requiring inputs as log-probabilities:
         self.loss_criterion = KLDivLoss(reduction='sum', log_target=False)
         # predictions expected as log-probabilities, labels as probabilities

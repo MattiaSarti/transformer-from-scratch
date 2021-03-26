@@ -37,6 +37,7 @@ class LossMinimizer:
         """
         # computing final softmax log-probabilities:
         log_probabilities = self.final_log_softmax_layer(logits)
+
         # computing loss value, flattening all outputs of all sequences along
         # a unique dimension (with no changes on the computational graphs but
         # more efficiently for the subsequent computations, using 2D arrays),
