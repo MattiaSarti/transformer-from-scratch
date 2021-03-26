@@ -1,11 +1,3 @@
-from random import seed as random_seed
-from typing import Tuple
-
-from numpy.random import seed as numpy_seed
-from torch import manual_seed as torch_manual_seed, tensor, Tensor
-from torch import cat as torch_cat, long as torch_long, ones as torch_ones,\
-    unsqueeze as torch_unsqueeze, zeros as torch_zeros
-
 from transformer.transformer import Transformer
 
 

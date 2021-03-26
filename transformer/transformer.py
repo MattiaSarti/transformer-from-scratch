@@ -25,11 +25,10 @@ from transformer.architecture.seq2seq import Seq2Seq,\
     Seq2SeqBuildingBlocks
 
 from transformer.training_and_inference.data import\
-    dataset_builder_copy_task#, dataset_builder_IWSLT_task
+    dataset_builder_copy_task
 from transformer.training_and_inference.optimizer import OptimizerHandler
 from transformer.training_and_inference.training_and_inference import\
-    DataParallelLossMinimizer, execute_training_epoch, LabelSmoothedLoss,\
-    LossMinimizer
+    execute_training_epoch, LabelSmoothedLoss, LossMinimizer
 
 
 class HyperparameterDict(TypedDict):
@@ -415,20 +414,21 @@ class Transformer:
 
         print('-' * 60)
 
-    # def train_on_IWSLT(
-    #             self,
-    #             n_epochs: int = 10,
-    #             mini_batch_size: int = 12000,
-    #             label_smoothing_factor: float = 0.1,
-    #             learning_rate_n_warmup_steps: int = 2000,
-    #             learning_rate_amplification_factor: float = 1,
-    #             adam_betas: Tuple[float, float] = (0.9, 0.98),
-    #             adam_epsilon: float = 1e-9
-    #             ) -> None:
-    #     """
-    #     Training the model on an IWSLT 2016 TED talks: the { German -> English }
-    #     translation task.
-    #     """
+    def train_on_IWSLT(
+                self,
+                n_epochs: int = 10,
+                mini_batch_size: int = 12000,
+                label_smoothing_factor: float = 0.1,
+                learning_rate_n_warmup_steps: int = 2000,
+                learning_rate_amplification_factor: float = 1,
+                adam_betas: Tuple[float, float] = (0.9, 0.98),
+                adam_epsilon: float = 1e-9
+                ) -> None:
+        """
+        Training the model on an IWSLT 2016 TED talks: the { German -> English }
+        translation task.
+        """
+        raise NotImplementedError
     #     # identifying GPU devices used to parallelize operations:
     #     device_ids = [0, 1, 2, 3]
 
@@ -439,7 +439,7 @@ class Transformer:
 
     #     training_iterator, validation_iterator,\
     #          padding_token = dataset_builder_IWSLT_task(
-            
+
     #     )
 
     #     criterion = LabelSmoothedLoss(

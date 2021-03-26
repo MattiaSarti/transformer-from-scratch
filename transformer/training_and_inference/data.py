@@ -173,10 +173,11 @@ def dataset_builder_copy_task(sequence_length: int, vocabulary_size: int,
             padding_token=0  # as assumed above
         )
 
-# def dataset_builder_IWSLT_task(max_sequence_length: int) -> Tuple[, , int]:
-#     """
-#     .
-#     """
+def dataset_builder_IWSLT_task(max_sequence_length: int) -> Tuple[, , int]:
+    """
+    .
+    """
+    raise NotImplementedError
 #     min_vocabulary_counts = 2
 
 #     tokenizer = Tokenizer(src_language='de', tgt_language='en')
@@ -272,5 +273,5 @@ def dataset_builder_copy_task(sequence_length: int, vocabulary_size: int,
 #     num_workers=num_workers,
 #     worker_init_fn=seed_worker
 # )
-def rebatch(padding_token: int, mini_batch: MiniBatch) -> MiniBatch:
-    pass
+# def rebatch(padding_token: int, mini_batch: MiniBatch) -> MiniBatch:
+#     pass

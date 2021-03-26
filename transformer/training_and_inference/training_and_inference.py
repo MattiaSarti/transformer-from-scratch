@@ -12,7 +12,6 @@ from torch.nn.parallel import gather as parallel_gather, parallel_apply,\
     replicate as parallel_replicate, scatter as parallel_scatter
 
 from transformer.training_and_inference.data import MiniBatch
-from transformer.training_and_inference.loss import LabelSmoothedLoss
 from transformer.training_and_inference.optimizer import OptimizerHandler
 
 
@@ -176,7 +175,6 @@ class DataParallelLossMinimizer:
                         chunk_output[j][0].grad.data.clone()
                     )
 
-
         # computing gradients and updating weights only when an optimizer is
         # passed:
         if self.optimizer_handler is not None:
@@ -192,11 +190,11 @@ class DataParallelLossMinimizer:
             gradients_from_devices = [
                 # concatenating gradients along the 1st dimension TODO: i.e.?
                 tensor(torch_cat(gradients_from_devices, dim=1),
-                                 requires_grad=True)
+                       requires_grad=True)
                 for g in gradients_from_devices
             ]
             log_probabilities.backward(
-                gradient=paraller_gather(
+                gradient=parallel_gather(
                     outputs=gradients_from_devices,
                     target_device=self.device_ids[0]  # device used to compute
                 )

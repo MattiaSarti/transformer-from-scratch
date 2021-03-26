@@ -68,7 +68,7 @@ class StandardTestLayer:
         # when only one single output tensor is returned:
         if is_tensor(actual_output_tensors):
             actual_output_tensors = [actual_output_tensors]
-        
+
         # ensuring the expected number of outputs is returned:
         self.assertEqual(len(self.expected_output_shapes),
                          len(actual_output_tensors))
@@ -141,7 +141,7 @@ class TestLayerNorm(ReproducibleTestLayer, StandardTestLayer,
     """
     Tests for LayerNorm.
     """
-    
+
     @classmethod
     def setUpClass(cls):
         """
@@ -154,7 +154,7 @@ class TestLayerNorm(ReproducibleTestLayer, StandardTestLayer,
         cls.input_tensors = {
             'features': torch_rand(
                 size=(MINI_BATCH_SIZE, MAX_SEQUENCE_LENGTH,
-                    REPRESENTATION_DIMENSION),
+                      REPRESENTATION_DIMENSION),
                 dtype=torch_float
             )
         }
@@ -171,7 +171,7 @@ class TestLogSoftmax(ReproducibleTestLayer, StandardTestLayer,
     """
     Tests for LogSoftmax.
     """
-    
+
     @classmethod
     def setUpClass(cls):
         """
@@ -185,7 +185,7 @@ class TestLogSoftmax(ReproducibleTestLayer, StandardTestLayer,
         cls.input_tensors = {
             'logits': torch_rand(
                 size=(MINI_BATCH_SIZE, MAX_SEQUENCE_LENGTH,
-                    REPRESENTATION_DIMENSION),
+                      REPRESENTATION_DIMENSION),
                 dtype=torch_float
             )
         }
@@ -202,7 +202,7 @@ class TestMultiHeadAttention(ReproducibleTestLayer, StandardTestLayer,
     """
     Tests for MultiHeadAttention.
     """
-    
+
     @classmethod
     def setUpClass(cls):
         """
@@ -217,12 +217,12 @@ class TestMultiHeadAttention(ReproducibleTestLayer, StandardTestLayer,
         cls.input_tensors = {
             'query_tokens': torch_rand(
                 size=(MINI_BATCH_SIZE, MAX_SEQUENCE_LENGTH - 1,
-                    REPRESENTATION_DIMENSION),
+                      REPRESENTATION_DIMENSION),
                 dtype=torch_float
             ),
             'key_or_value_tokens': torch_rand(
                 size=(MINI_BATCH_SIZE, MAX_SEQUENCE_LENGTH,
-                    REPRESENTATION_DIMENSION),
+                      REPRESENTATION_DIMENSION),
                 dtype=torch_float
             ),
             'mask': torch_rand(
@@ -244,7 +244,7 @@ class TestPositionalEncoding(ReproducibleTestLayer, StandardTestLayer,
     """
     Tests for PositionalEncoding.
     """
-    
+
     @classmethod
     def setUpClass(cls):
         """
@@ -259,7 +259,7 @@ class TestPositionalEncoding(ReproducibleTestLayer, StandardTestLayer,
         cls.input_tensors = {
             'token_embeddings': torch_rand(
                 size=(MINI_BATCH_SIZE, MAX_SEQUENCE_LENGTH,
-                    REPRESENTATION_DIMENSION),
+                      REPRESENTATION_DIMENSION),
                 dtype=torch_float
             )
         }
@@ -276,7 +276,7 @@ class TestPositionWiseFeedForward(ReproducibleTestLayer, StandardTestLayer,
     """
     Tests for PositionWiseFeedForward.
     """
-    
+
     @classmethod
     def setUpClass(cls):
         """
@@ -291,7 +291,7 @@ class TestPositionWiseFeedForward(ReproducibleTestLayer, StandardTestLayer,
         cls.input_tensors = {
             'features': torch_rand(
                 size=(MINI_BATCH_SIZE, MAX_SEQUENCE_LENGTH,
-                    REPRESENTATION_DIMENSION),
+                      REPRESENTATION_DIMENSION),
                 dtype=torch_float
             )
         }
@@ -308,7 +308,7 @@ class TestResidualConnectionAndLayerNorm(ReproducibleTestLayer, StandardTestLaye
     """
     Tests for ResidualConnectionAndLayerNorm.
     """
-    
+
     @classmethod
     def setUpClass(cls):
         """
@@ -322,7 +322,7 @@ class TestResidualConnectionAndLayerNorm(ReproducibleTestLayer, StandardTestLaye
         cls.input_tensors = {
             'features': torch_rand(
                 size=(MINI_BATCH_SIZE, MAX_SEQUENCE_LENGTH,
-                    REPRESENTATION_DIMENSION),
+                      REPRESENTATION_DIMENSION),
                 dtype=torch_float
             )
         }
