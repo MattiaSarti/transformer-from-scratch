@@ -63,7 +63,7 @@ class StandardTestLayer:
             self.expected_output_dtypes), "Ill-defined test."
 
         # computing output tensors:
-        actual_output_tensors = self.layer(**self.input_tensors)
+        actual_output_tensors = self.layer(**self.forward_propagation_kwargs)
 
         # when only one single output tensor is returned:
         if is_tensor(actual_output_tensors):
@@ -120,7 +120,7 @@ class TestEmbedder(ReproducibleTestLayer, StandardTestLayer, TestCase):
             token_representation_dimension=REPRESENTATION_DIMENSION,
             vocabulary_dimension=SRC_VOCABULARY_DIMENSION
         )
-        cls.input_tensors = {
+        cls.forward_propagation_kwargs = {
             'token_ids': torch_randint(
                 low=0,
                 high=SRC_VOCABULARY_DIMENSION,
@@ -151,7 +151,7 @@ class TestLayerNorm(ReproducibleTestLayer, StandardTestLayer,
         cls.layer = LayerNorm(
             feature_dimension=REPRESENTATION_DIMENSION
         )
-        cls.input_tensors = {
+        cls.forward_propagation_kwargs = {
             'features': torch_rand(
                 size=(MINI_BATCH_SIZE, MAX_SEQUENCE_LENGTH,
                       REPRESENTATION_DIMENSION),
@@ -182,7 +182,7 @@ class TestLogSoftmax(ReproducibleTestLayer, StandardTestLayer,
             token_representation_dimension=REPRESENTATION_DIMENSION,
             vocabulary_dimension=TGT_VOCABULARY_DIMENSION
         )
-        cls.input_tensors = {
+        cls.forward_propagation_kwargs = {
             'logits': torch_rand(
                 size=(MINI_BATCH_SIZE, MAX_SEQUENCE_LENGTH,
                       REPRESENTATION_DIMENSION),
@@ -214,7 +214,7 @@ class TestMultiHeadAttention(ReproducibleTestLayer, StandardTestLayer,
             token_representation_dimension=REPRESENTATION_DIMENSION,
             dropout_prob=DROPOUT_PROB
         )
-        cls.input_tensors = {
+        cls.forward_propagation_kwargs = {
             'query_tokens': torch_rand(
                 size=(MINI_BATCH_SIZE, MAX_SEQUENCE_LENGTH - 1,
                       REPRESENTATION_DIMENSION),
@@ -256,7 +256,7 @@ class TestPositionalEncoding(ReproducibleTestLayer, StandardTestLayer,
             dropout_prob=DROPOUT_PROB,
             max_sequence_length=MAX_SEQUENCE_LENGTH
         )
-        cls.input_tensors = {
+        cls.forward_propagation_kwargs = {
             'token_embeddings': torch_rand(
                 size=(MINI_BATCH_SIZE, MAX_SEQUENCE_LENGTH,
                       REPRESENTATION_DIMENSION),
@@ -288,7 +288,7 @@ class TestPositionWiseFeedForward(ReproducibleTestLayer, StandardTestLayer,
             feedforward_dimension=FEEDFORWARD_DIMENSION,
             dropout_prob=DROPOUT_PROB
         )
-        cls.input_tensors = {
+        cls.forward_propagation_kwargs = {
             'features': torch_rand(
                 size=(MINI_BATCH_SIZE, MAX_SEQUENCE_LENGTH,
                       REPRESENTATION_DIMENSION),
@@ -319,11 +319,19 @@ class TestResidualConnectionAndLayerNorm(ReproducibleTestLayer, StandardTestLaye
             feature_dimension=REPRESENTATION_DIMENSION,
             dropout_prob=DROPOUT_PROB
         )
-        cls.input_tensors = {
+        position_wise_feed_forward = PositionWiseFeedForward(
+            token_representation_dimension=REPRESENTATION_DIMENSION,
+            feedforward_dimension=FEEDFORWARD_DIMENSION,
+            dropout_prob=DROPOUT_PROB
+        )
+        cls.forward_propagation_kwargs = {
             'features': torch_rand(
                 size=(MINI_BATCH_SIZE, MAX_SEQUENCE_LENGTH,
                       REPRESENTATION_DIMENSION),
                 dtype=torch_float
+            ),
+            'base_layer_call': lambda x: position_wise_feed_forward(
+
             )
         }
         cls.expected_output_shapes = [
@@ -332,4 +340,3 @@ class TestResidualConnectionAndLayerNorm(ReproducibleTestLayer, StandardTestLaye
         cls.expected_output_dtypes = [
             torch_float
         ]
-        raise Exception('forward requires layers as inputs')

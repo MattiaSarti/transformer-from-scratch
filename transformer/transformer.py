@@ -49,7 +49,8 @@ class HyperparameterDict(TypedDict):
 
 class Transformer:
     """
-    Transformer.
+    Transformer model handler, with methods for initialization, training and
+    inference.
     """
 
     def __init__(

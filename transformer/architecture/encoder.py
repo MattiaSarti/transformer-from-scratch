@@ -64,13 +64,14 @@ class EncoderBlock(Module):
         # self-attention, towards encoder token positions themselves, followed
         # by residual connection and layer normalization:
         src_features = self.residual_connection_blocks[0](
-            src_features,
-            lambda x: self.self_multi_head_attention_layer(
+            features=src_features,
+            base_layer_call=lambda x: self.self_multi_head_attention_layer(
                 query_tokens=x,
                 key_or_value_tokens=x,
                 mask=src_mask
             )
         )
+
         # fully-connected (feed-forward) layer followed by residual connection
         # and layer normalization:
         return self.residual_connection_blocks[1](src_features,
@@ -108,6 +109,7 @@ class Encoder(Module):
         for layer_block in self.layer_blocks:
             src_features = layer_block(src_features=src_features,
                                        src_mask=src_mask)
+
         return self.normalization_layer(src_features)
         # TODO: understand why this last, additional normalization and why
         # it is not to be masked

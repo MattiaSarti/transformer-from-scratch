@@ -4,6 +4,7 @@ Base layers and utilities.
 
 
 from copy import deepcopy
+from typing import Callable
 
 from torch import ones as torch_ones, Tensor, zeros as torch_zeros
 from torch.nn import Dropout, Linear, Module, ModuleList, Parameter
@@ -96,7 +97,8 @@ class ResidualConnectionAndLayerNorm(Module):
         )
         self.dropout_layer = Dropout(p=dropout_prob)
 
-    def forward(self, features, base_layer: Module) -> Tensor:
+    def forward(self, features, base_layer_call: Callable[[Tensor, Tensor],
+                                                          Tensor]) -> Tensor:
         """
         Forward propagation.
 
@@ -112,7 +114,7 @@ class ResidualConnectionAndLayerNorm(Module):
 
         """
         return features + self.dropout_layer(
-            base_layer(
+            base_layer_call(
                 self.layer_normalization_layer(features)
             )
         )
