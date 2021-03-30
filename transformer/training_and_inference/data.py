@@ -173,7 +173,8 @@ def dataset_builder_copy_task(sequence_length: int, vocabulary_size: int,
             padding_token=0  # as assumed above
         )
 
-def dataset_builder_IWSLT_task(max_sequence_length: int) -> Tuple[, , int]:
+def dataset_builder_IWSLT_task(max_sequence_length: int):
+    # TODO: understand returned data type -> Tuple[, , int]:
     """
     .
     """

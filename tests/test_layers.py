@@ -3,19 +3,23 @@ Utilities for testing each single layer kind independently.
 """
 
 
+from copy import deepcopy
 from unittest import TestCase
 
 from torch import float as torch_float, is_tensor, long as torch_long,\
     rand as torch_rand, randint as torch_randint
+from torch.nn import Sequential
 
 from transformer.architecture.attention import allowed_positions_to_attend,\
     MultiHeadAttention, scaled_dot_product_attention
 from transformer.architecture.base import get_clones, LayerNorm, LogSoftmax,\
     PositionWiseFeedForward, ResidualConnectionAndLayerNorm
 from transformer.architecture.embedding import Embedder, PositionalEncoding
-from transformer.architecture.encoder import Encoder, EncoderBlock
-from transformer.architecture.decoder import Decoder, DecoderBlock
-from transformer.architecture.seq2seq import Seq2Seq
+from transformer.architecture.encoder import Encoder, EncoderBlock,\
+    EncoderBlockBuildingBlocks
+from transformer.architecture.decoder import Decoder, DecoderBlock,\
+    DecoderBlockBuildingBlocks
+from transformer.architecture.seq2seq import Seq2Seq, Seq2SeqBuildingBlocks
 from transformer.training_and_inference.reproducibility import\
     make_results_reproducible
 
@@ -103,6 +107,236 @@ class StandardTestLayer:
 # Actual Tests Follow
 # ----------------------------------------------------------------------------
 # ----------------------------------------------------------------------------
+
+
+class TestEncoder(ReproducibleTestLayer, StandardTestLayer, TestCase):
+    """
+    Tests for Encoder.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        """
+        Avoid redundant, time-consuming, equivalent setups when testing across
+        the different methods, that can use common instantiations.
+        """
+        feedforward_layer = PositionWiseFeedForward(
+            token_representation_dimension=REPRESENTATION_DIMENSION,
+            feedforward_dimension=FEEDFORWARD_DIMENSION,
+            dropout_prob=DROPOUT_PROB
+        )
+        multi_head_attention_later = MultiHeadAttention(
+            n_attention_heads=N_ATTENTION_HEADS,
+            token_representation_dimension=REPRESENTATION_DIMENSION,
+            dropout_prob=DROPOUT_PROB
+        )
+        cls.layer = Encoder(
+            base_block=EncoderBlock(
+                building_blocks=EncoderBlockBuildingBlocks(
+                    self_multi_head_attention_layer=deepcopy(
+                        multi_head_attention_later),
+                    source_multi_head_attention_layer=deepcopy(
+                        multi_head_attention_later),
+                    fully_connected_layer=feedforward_layer
+                ),
+                feature_dimension=REPRESENTATION_DIMENSION,
+                dropout_prob=DROPOUT_PROB
+            ),
+            n_clones=N_ENCODER_BLOCKS
+        )
+        cls.forward_propagation_kwargs = {
+            'src_features': torch_rand(
+                size=(MINI_BATCH_SIZE, MAX_SEQUENCE_LENGTH,
+                      REPRESENTATION_DIMENSION),
+                dtype=torch_float
+            ),
+            'src_mask': torch_rand(
+                size=(MINI_BATCH_SIZE, 1, MAX_SEQUENCE_LENGTH),
+                dtype=torch_long
+            )
+        }
+        cls.expected_output_shapes = [
+            (MINI_BATCH_SIZE, MAX_SEQUENCE_LENGTH, REPRESENTATION_DIMENSION)
+        ]
+        cls.expected_output_dtypes = [
+            torch_float
+        ]
+
+
+class TestEncoderBlock(ReproducibleTestLayer, StandardTestLayer, TestCase):
+    """
+    Tests for EncoderBlock.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        """
+        Avoid redundant, time-consuming, equivalent setups when testing across
+        the different methods, that can use common instantiations.
+        """
+        feedforward_layer = PositionWiseFeedForward(
+            token_representation_dimension=REPRESENTATION_DIMENSION,
+            feedforward_dimension=FEEDFORWARD_DIMENSION,
+            dropout_prob=DROPOUT_PROB
+        )
+        multi_head_attention_later = MultiHeadAttention(
+            n_attention_heads=N_ATTENTION_HEADS,
+            token_representation_dimension=REPRESENTATION_DIMENSION,
+            dropout_prob=DROPOUT_PROB
+        )
+        cls.layer = EncoderBlock(
+            building_blocks=EncoderBlockBuildingBlocks(
+                self_multi_head_attention_layer=deepcopy(
+                    multi_head_attention_later),
+                source_multi_head_attention_layer=deepcopy(
+                    multi_head_attention_later),
+                fully_connected_layer=feedforward_layer
+            ),
+            feature_dimension=REPRESENTATION_DIMENSION,
+            dropout_prob=DROPOUT_PROB
+        )
+        cls.forward_propagation_kwargs = {
+            'src_features': torch_rand(
+                size=(MINI_BATCH_SIZE, MAX_SEQUENCE_LENGTH,
+                      REPRESENTATION_DIMENSION),
+                dtype=torch_float
+            ),
+            'src_mask': torch_rand(
+                size=(MINI_BATCH_SIZE, 1, MAX_SEQUENCE_LENGTH),
+                dtype=torch_long
+            )
+        }
+        cls.expected_output_shapes = [
+            (MINI_BATCH_SIZE, MAX_SEQUENCE_LENGTH, REPRESENTATION_DIMENSION)
+        ]
+        cls.expected_output_dtypes = [
+            torch_float
+        ]
+
+
+class TestDecoder(ReproducibleTestLayer, StandardTestLayer, TestCase):
+    """
+    Tests for Decoder.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        """
+        Avoid redundant, time-consuming, equivalent setups when testing across
+        the different methods, that can use common instantiations.
+        """
+        feedforward_layer = PositionWiseFeedForward(
+            token_representation_dimension=REPRESENTATION_DIMENSION,
+            feedforward_dimension=FEEDFORWARD_DIMENSION,
+            dropout_prob=DROPOUT_PROB
+        )
+        multi_head_attention_later = MultiHeadAttention(
+            n_attention_heads=N_ATTENTION_HEADS,
+            token_representation_dimension=REPRESENTATION_DIMENSION,
+            dropout_prob=DROPOUT_PROB
+        )
+        cls.layer = Decoder(
+            base_block=DecoderBlock(
+                building_blocks=DecoderBlockBuildingBlocks(
+                    self_multi_head_attention_layer=deepcopy(
+                        multi_head_attention_later),
+                    source_multi_head_attention_layer=deepcopy(
+                        multi_head_attention_later),
+                    fully_connected_layer=feedforward_layer
+                ),
+                feature_dimension=REPRESENTATION_DIMENSION,
+                dropout_prob=DROPOUT_PROB
+            ),
+            n_clones=N_DECODER_BLOCKS
+        )
+        cls.forward_propagation_kwargs = {
+            'tgt_features': torch_rand(
+                size=(MINI_BATCH_SIZE, MAX_SEQUENCE_LENGTH - 1,
+                      REPRESENTATION_DIMENSION),
+                dtype=torch_float
+            ),
+            'src_encoded_tokens': torch_rand(
+                size=(MINI_BATCH_SIZE, MAX_SEQUENCE_LENGTH,
+                      REPRESENTATION_DIMENSION),
+                dtype=torch_float
+            ),
+            'tgt_mask': torch_rand(
+                size=(MINI_BATCH_SIZE, MAX_SEQUENCE_LENGTH - 1,
+                      MAX_SEQUENCE_LENGTH - 1),
+                dtype=torch_long
+            ),
+            'src_mask': torch_rand(
+                size=(MINI_BATCH_SIZE, 1, MAX_SEQUENCE_LENGTH),
+                dtype=torch_long
+            )
+        }
+        cls.expected_output_shapes = [
+            (MINI_BATCH_SIZE, MAX_SEQUENCE_LENGTH, REPRESENTATION_DIMENSION)
+        ]
+        cls.expected_output_dtypes = [
+            torch_float
+        ]
+
+
+class TestDecoderBlock(ReproducibleTestLayer, StandardTestLayer, TestCase):
+    """
+    Tests for DecoderBlock.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        """
+        Avoid redundant, time-consuming, equivalent setups when testing across
+        the different methods, that can use common instantiations.
+        """
+        feedforward_layer = PositionWiseFeedForward(
+            token_representation_dimension=REPRESENTATION_DIMENSION,
+            feedforward_dimension=FEEDFORWARD_DIMENSION,
+            dropout_prob=DROPOUT_PROB
+        )
+        multi_head_attention_later = MultiHeadAttention(
+            n_attention_heads=N_ATTENTION_HEADS,
+            token_representation_dimension=REPRESENTATION_DIMENSION,
+            dropout_prob=DROPOUT_PROB
+        )
+        cls.layer = DecoderBlock(
+            building_blocks=DecoderBlockBuildingBlocks(
+                self_multi_head_attention_layer=deepcopy(
+                    multi_head_attention_later),
+                source_multi_head_attention_layer=deepcopy(
+                    multi_head_attention_later),
+                fully_connected_layer=feedforward_layer
+            ),
+            feature_dimension=REPRESENTATION_DIMENSION,
+            dropout_prob=DROPOUT_PROB
+        )
+        cls.forward_propagation_kwargs = {
+            'tgt_features': torch_rand(
+                size=(MINI_BATCH_SIZE, MAX_SEQUENCE_LENGTH - 1,
+                      REPRESENTATION_DIMENSION),
+                dtype=torch_float
+            ),
+            'src_encoded_tokens': torch_rand(
+                size=(MINI_BATCH_SIZE, MAX_SEQUENCE_LENGTH,
+                      REPRESENTATION_DIMENSION),
+                dtype=torch_float
+            ),
+            'tgt_mask': torch_rand(
+                size=(MINI_BATCH_SIZE, MAX_SEQUENCE_LENGTH - 1,
+                      MAX_SEQUENCE_LENGTH - 1),
+                dtype=torch_long
+            ),
+            'src_mask': torch_rand(
+                size=(MINI_BATCH_SIZE, 1, MAX_SEQUENCE_LENGTH),
+                dtype=torch_long
+            )
+        }
+        cls.expected_output_shapes = [
+            (MINI_BATCH_SIZE, MAX_SEQUENCE_LENGTH, REPRESENTATION_DIMENSION)
+        ]
+        cls.expected_output_dtypes = [
+            torch_float
+        ]
 
 
 class TestEmbedder(ReproducibleTestLayer, StandardTestLayer, TestCase):
@@ -227,7 +461,7 @@ class TestMultiHeadAttention(ReproducibleTestLayer, StandardTestLayer,
             ),
             'mask': torch_rand(
                 size=(MINI_BATCH_SIZE, 1, MAX_SEQUENCE_LENGTH),
-                dtype=torch_float
+                dtype=torch_long
             )
         }
         cls.expected_output_shapes = [
@@ -331,7 +565,118 @@ class TestResidualConnectionAndLayerNorm(ReproducibleTestLayer, StandardTestLaye
                 dtype=torch_float
             ),
             'base_layer_call': lambda x: position_wise_feed_forward(
+                x
+            )
+        }
+        cls.expected_output_shapes = [
+            (MINI_BATCH_SIZE, MAX_SEQUENCE_LENGTH, REPRESENTATION_DIMENSION)
+        ]
+        cls.expected_output_dtypes = [
+            torch_float
+        ]
 
+
+class TestSeq2Seq(ReproducibleTestLayer, StandardTestLayer, TestCase):
+    """
+    Tests for Seq2Seq.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        """
+        Avoid redundant, time-consuming, equivalent setups when testing across
+        the different methods, that can use common instantiations.
+        """
+        positional_encoding_layer = PositionalEncoding(
+            token_representation_dimension=self.representation_dimension,
+            dropout_prob=self.dropout_prob,
+            max_sequence_length=self.max_sequence_length
+        )
+        src_embedder = Sequential(
+            Embedder(
+                token_representation_dimension=REPRESENTATION_DIMENSION,
+                vocabulary_dimension=SRC_VOCABULARY_DIMENSION
+            ),
+            deepcopy(positional_encoding_layer)
+        )
+        tgt_embedder = Sequential(
+            Embedder(
+                token_representation_dimension=REPRESENTATION_DIMENSION,
+                vocabulary_dimension=TGT_VOCABULARY_DIMENSION
+            ),
+            deepcopy(positional_encoding_layer)
+        )
+        feedforward_layer = PositionWiseFeedForward(
+            token_representation_dimension=REPRESENTATION_DIMENSION,
+            feedforward_dimension=FEEDFORWARD_DIMENSION,
+            dropout_prob=DROPOUT_PROB
+        )
+        multi_head_attention_later = MultiHeadAttention(
+            n_attention_heads=N_ATTENTION_HEADS,
+            token_representation_dimension=REPRESENTATION_DIMENSION,
+            dropout_prob=DROPOUT_PROB
+        )
+        encoder = Encoder(
+            base_block=EncoderBlock(
+                building_blocks=EncoderBlockBuildingBlocks(
+                    self_multi_head_attention_layer=deepcopy(
+                        multi_head_attention_later),
+                    source_multi_head_attention_layer=deepcopy(
+                        multi_head_attention_later),
+                    fully_connected_layer=feedforward_layer
+                ),
+                feature_dimension=REPRESENTATION_DIMENSION,
+                dropout_prob=DROPOUT_PROB
+            ),
+            n_clones=N_ENCODER_BLOCKS
+        )
+        decoder = Decoder(
+            base_block=DecoderBlock(
+                building_blocks=DecoderBlockBuildingBlocks(
+                    self_multi_head_attention_layer=deepcopy(
+                        multi_head_attention_later),
+                    source_multi_head_attention_layer=deepcopy(
+                        multi_head_attention_later),
+                    fully_connected_layer=feedforward_layer
+                ),
+                feature_dimension=REPRESENTATION_DIMENSION,
+                dropout_prob=DROPOUT_PROB
+            ),
+            n_clones=N_DECODER_BLOCKS
+        )
+        log_softmax_layer = LogSoftmax(
+            token_representation_dimension=self.representation_dimension,
+            vocabulary_dimension=self.tgt_vocabulary_dimension
+        )
+        building_blocks = Seq2SeqBuildingBlocks(
+            encoder=encoder,
+            decoder=decoder,
+            src_embedder=src_embedder,
+            tgt_embedder=tgt_embedder,
+            log_softmax_layer=log_softmax_layer
+        )
+        cls.layer = Seq2Seq(
+            building_blocks=building_blocks
+        )
+        cls.forward_propagation_kwargs = {
+            'tgt_features': torch_rand(
+                size=(MINI_BATCH_SIZE, MAX_SEQUENCE_LENGTH - 1,
+                      REPRESENTATION_DIMENSION),
+                dtype=torch_float
+            ),
+            'src_encoded_tokens': torch_rand(
+                size=(MINI_BATCH_SIZE, MAX_SEQUENCE_LENGTH,
+                      REPRESENTATION_DIMENSION),
+                dtype=torch_float
+            ),
+            'tgt_mask': torch_rand(
+                size=(MINI_BATCH_SIZE, MAX_SEQUENCE_LENGTH - 1,
+                      MAX_SEQUENCE_LENGTH - 1),
+                dtype=torch_long
+            ),
+            'src_mask': torch_rand(
+                size=(MINI_BATCH_SIZE, 1, MAX_SEQUENCE_LENGTH),
+                dtype=torch_long
             )
         }
         cls.expected_output_shapes = [
