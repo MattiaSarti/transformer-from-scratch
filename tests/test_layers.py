@@ -4,11 +4,13 @@ Utilities for testing each single layer kind independently.
 
 
 from copy import deepcopy
-from unittest import TestCase
+from unittest import skipIf, TestCase
 
-from torch import float as torch_float, is_tensor, long as torch_long,\
-    rand as torch_rand, randint as torch_randint
+from torch import abs as torch_abs, equal as torch_equal, float as\
+    torch_float, is_tensor, long as torch_long, rand as torch_rand,\
+        randint as torch_randint, sum as torch_sum
 from torch.nn import Sequential
+from torch.optim import SGD
 
 from transformer.architecture.attention import allowed_positions_to_attend,\
     MultiHeadAttention, scaled_dot_product_attention
@@ -35,6 +37,18 @@ N_ATTENTION_HEADS = 8
 MAX_SEQUENCE_LENGTH = 30
 DROPOUT_PROB = 0.1
 MINI_BATCH_SIZE = 40
+
+
+def skip_if_no_parameters(function):
+    """
+    Skip the test it the layer has no parameters.
+    """
+    def inner_decorator(self, *args, **kwargs):
+        if list(self.layer.parameters()) == []:
+            self.skipTest('no parameters to test')
+        else:
+            function(self, *args, **kwargs)
+    return inner_decorator
 
 
 class ReproducibleTestLayer:
@@ -100,6 +114,82 @@ class StandardTestLayer:
             # checking the data type:
             with self.subTest(subtest_name):
                 self.assertEqual(actual_dtype, expected_dtype)
+
+    # skipping the test it the layer has no parameters:
+    @skip_if_no_parameters
+    def test_gradients_and_parameter_updates(self):
+        """
+        Test that all parameters undergo loss gradient computation with
+        respect to them and are subsequently updated.
+        """
+        # making sure there is no gradient computation cumulated for any
+        # parameter - each parameter's gradient is exactly zero:
+        for param in self.layer.parameters():
+            assert param.grad is None, "Ill-defined test."
+
+        # switching to training mode so that all parameters can undergo
+        # backpropagation:
+        self.layer.train()
+
+        # defining an optimizer for updating all parameters of the layer -
+        # learning rate is exaggerated to have meaningful updates for all
+        # parameters even where their gradient is very weak:
+        learning_rate = 1e12
+        optimizer = SGD(self.layer.parameters(), lr=learning_rate)
+
+        # taking an initial snapshot of all parameters before any
+        # backpropagation pass:
+        initial_parameter_dict = {
+            name: deepcopy(parameter_vector) for name, parameter_vector in
+            self.layer.named_parameters()
+        }
+
+        # computing the layer outputs after a forward propagation pass:
+        outputs = self.layer(**self.forward_propagation_kwargs)
+
+        # computing an hypothetical loss - averaging outputs for convenience:
+        loss = outputs.mean()
+
+        # computing loss gradients with respect to all layer parameters that
+        # require gradient computation:
+        loss.backward()
+
+        # asserting that every parameter that requires gradient computation
+        # has undergone loss gradient computation:
+
+        subtest_base_name = "gradients"
+        # for every parameter vector:
+        for name, parameter_vector in self.layer.named_parameters():
+            subtest_name = subtest_base_name + ' - ' + name
+            with self.subTest(subtest_name):
+                # only parameters that require gradient computation are
+                # considered:
+                if parameter_vector.requires_grad:
+                    gradients = parameter_vector.grad
+                    self.assertIsNotNone(gradients)
+                    # asserting that at least a single parameter gradient in
+                    # the vector of parameters is different from zero:
+                    self.assertNotEqual(0., torch_sum(torch_abs(gradients)))
+
+        # updating all layer parameters based on their gradients:
+        optimizer.step()
+
+        # asserting that every parameter has been updated:
+
+        subtest_base_name = "parameter updates"
+        # for every parameter vector:
+        for name, updated_parameter_vector in self.layer.named_parameters():
+            subtest_name = subtest_base_name + ' - ' + name
+            with self.subTest(subtest_name):
+                # only parameters that require gradient computation. i.e.
+                # adjustment, are considered:
+                if parameter_vector.requires_grad:
+                    self.assertFalse(
+                        torch_equal(
+                            initial_parameter_dict[name],  # initial values
+                            updated_parameter_vector  # updated values
+                        )
+                    )
 
 
 # ----------------------------------------------------------------------------
@@ -535,8 +625,8 @@ class TestPositionWiseFeedForward(ReproducibleTestLayer, StandardTestLayer,
         ]
 
 
-class TestResidualConnectionAndLayerNorm(ReproducibleTestLayer, StandardTestLayer,
-                                         TestCase):
+class TestResidualConnectionAndLayerNorm(ReproducibleTestLayer,
+                                         StandardTestLayer, TestCase):
     """
     Tests for ResidualConnectionAndLayerNorm.
     """

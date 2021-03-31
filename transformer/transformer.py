@@ -9,7 +9,7 @@ from typing import Tuple, TypedDict
 from torch import cat as torch_cat, max as torch_max, ones as torch_ones,\
     Tensor
 from torch.cuda import is_available as cuda_is_available
-from torch.nn import DataParallel, Sequential
+from torch.nn import Sequential
 from torch.nn.init import xavier_uniform_
 from torch.optim import Adam
 
@@ -426,7 +426,7 @@ class Transformer:
                 adam_epsilon: float = 1e-9
                 ) -> None:
         """
-        Training the model on an IWSLT 2016 TED talks: the { German -> English }
+        Training the model on an IWSLT 2016 TED talks: the {German -> English}
         translation task.
         """
         raise NotImplementedError
