@@ -43,12 +43,12 @@ def skip_if_no_parameters(function):
     """
     Skip the test it the layer has no parameters.
     """
-    def inner_decorator(self, *args, **kwargs):
+    def wrapper(self, *args, **kwargs):
         if list(self.layer.parameters()) == []:
             self.skipTest('no parameters to test')
         else:
             function(self, *args, **kwargs)
-    return inner_decorator
+    return wrapper
 
 
 class ReproducibleTestLayer:
@@ -123,7 +123,7 @@ class StandardTestLayer:
         respect to them and are subsequently updated.
         """
         # making sure there is no gradient computation cumulated for any
-        # parameter - each parameter's gradient is exactly zero:
+        # parameter - each parameter's gradient is not defined yet:
         for param in self.layer.parameters():
             assert param.grad is None, "Ill-defined test."
 
