@@ -66,9 +66,9 @@ class ReproducibleTestLayer:
         make_results_reproducible()
 
 
-class StandardTestLayer:
+class OutputShapesAndDTypesLayerTests:
     """
-    Common standard shape and data type input-output tests.
+    Tests for shapes and data types of layer outputs.
     """
 
     def test_output_shapes_and_dtypes(self):
@@ -114,6 +114,12 @@ class StandardTestLayer:
             # checking the data type:
             with self.subTest(subtest_name):
                 self.assertEqual(actual_dtype, expected_dtype)
+
+
+class GradientsAndParameterUpdatesLayerTests:
+    """
+    Tests for layer gradient computations and parameters updates.
+    """
 
     # skipping the test it the layer has no parameters:
     @skip_if_no_parameters
@@ -190,6 +196,13 @@ class StandardTestLayer:
                             updated_parameter_vector  # updated values
                         )
                     )
+
+
+class StandardTestLayer(OutputShapesAndDTypesLayerTests,
+                        GradientsAndParameterUpdatesLayerTests):
+    """
+    Common standard shape and data type input-output tests.
+    """
 
 
 # ----------------------------------------------------------------------------
@@ -664,7 +677,8 @@ class TestResidualConnectionAndLayerNorm(ReproducibleTestLayer,
         ]
 
 
-class TestSeq2Seq(ReproducibleTestLayer, StandardTestLayer, TestCase):
+class TestSeq2Seq(ReproducibleTestLayer, OutputShapesAndDTypesLayerTests,
+                  TestCase):
     """
     Tests for Seq2Seq.
     """
