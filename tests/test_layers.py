@@ -128,11 +128,6 @@ class GradientsAndParameterUpdatesLayerTests:
         Test that all parameters undergo loss gradient computation with
         respect to them and are subsequently updated.
         """
-        # making sure there is no gradient computation cumulated for any
-        # parameter - each parameter's gradient is not defined yet:
-        for param in self.layer.parameters():
-            assert param.grad is None, "Ill-defined test."
-
         # switching to training mode so that all parameters can undergo
         # backpropagation:
         self.layer.train()
@@ -142,6 +137,10 @@ class GradientsAndParameterUpdatesLayerTests:
         # parameters even where their gradient is very weak:
         learning_rate = 1e12
         optimizer = SGD(self.layer.parameters(), lr=learning_rate)
+
+        # making sure there is no gradient computation cumulated for any
+        # parameter making each parameter's gradient is not defined yet:
+        optimizer.zero_grad(set_to_none=True)
 
         # taking an initial snapshot of all parameters before any
         # backpropagation pass:
