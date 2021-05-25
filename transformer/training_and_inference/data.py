@@ -3,7 +3,7 @@ Utilities for loading data.
 """
 
 
-from typing import Generator, Tuple
+from typing import Generator, Optional
 
 from numpy import int64 as numpy_int64
 from numpy.random import randint
@@ -40,7 +40,7 @@ class MiniBatch:
         return tgt_mask
 
     def __init__(self, src_tokens: Tensor, padding_token: int,
-                 tgt_tokens: Tensor = None) -> None:
+                 tgt_tokens: Optional[Tensor] = None) -> None:
         # source inputs:
         self.src_tokens = src_tokens
         # all source positions are allowed to be attended, both by the
@@ -173,7 +173,7 @@ def dataset_builder_copy_task(sequence_length: int, vocabulary_size: int,
             padding_token=0  # as assumed above
         )
 
-def dataset_builder_IWSLT_task(max_sequence_length: int):
+def dataset_builder_IWSLT_task(max_sequence_length: int) -> None:
     # TODO: understand returned data type -> Tuple[, , int]:
     """
     .

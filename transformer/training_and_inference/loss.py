@@ -1,3 +1,8 @@
+"""
+Loss functions and utilities for handling them.
+"""
+
+
 from torch import nonzero, Tensor
 from torch.nn import KLDivLoss, Module
 

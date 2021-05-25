@@ -1,3 +1,10 @@
+"""
+Optimizers and utilities for handling them.
+"""
+
+
+from typing import Optional
+
 from torch.optim import Adam
 
 
@@ -16,7 +23,7 @@ class OptimizerHandler:
         self._training_step_number = 0
         self._learning_rate = 0
 
-    def get_learning_rate(self, step: int = None) -> float:
+    def get_learning_rate(self, step: Optional[int] = None) -> float:
         """
         Return the learning rate at the input step according to the Noam
         learning rate trend.

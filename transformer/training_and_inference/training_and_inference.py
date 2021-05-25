@@ -4,7 +4,7 @@ Utilities for training a Transformer.
 
 
 from time import time
-from typing import Generator, List
+from typing import Generator, List, Optional
 
 from torch import cat as torch_cat, Tensor
 from torch.nn import Module
@@ -22,7 +22,7 @@ class LossMinimizer:
     """
 
     def __init__(self, final_log_softmax_layer: Module, criterion: Module,
-                 optimizer_handler: OptimizerHandler = None) -> float:
+                 optimizer_handler: Optional[OptimizerHandler] = None) -> float:
         self.final_log_softmax_layer = final_log_softmax_layer
         self.criterion = criterion
         self.optimizer_handler = optimizer_handler
@@ -86,7 +86,7 @@ class DataParallelLossMinimizer:
 
     def __init__(self, final_log_softmax_layer: Module, criterion: Module,
                  device_ids: List[int], chunk_size: int = 5, 
-                 optimizer_handler: OptimizerHandler = None) -> None:
+                 optimizer_handler: Optional[OptimizerHandler] = None) -> None:
         self.final_log_softmax_layer = final_log_softmax_layer
         self.criterion = parallel_replicate(criterion, devices=device_ids)
         self.optimizer_handler = optimizer_handler

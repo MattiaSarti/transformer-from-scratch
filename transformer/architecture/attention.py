@@ -4,6 +4,7 @@ Layers and utilities related to the attention mechanism.
 
 
 from math import sqrt
+from typing import Optional
 
 from numpy import ones as np_ones, tril
 from torch import from_numpy, matmul, Tensor
@@ -25,8 +26,8 @@ def allowed_positions_to_attend(n_positions: int) -> Tensor:
 
 
 def scaled_dot_product_attention(queries: Tensor, keys: Tensor,
-                                 values: Tensor, mask: Tensor = None,
-                                 dropout_layer: Module = None) -> Tensor:
+                                 values: Tensor, mask: Optional[Tensor] = None,
+                                 dropout_layer: Optional[Module] = None) -> Tensor:
     """
     Return result of scaled dot-product attention operation:
     - equation: Attention(Q, K, V) = softmax(QK_T / √dk)V , with dropout
@@ -112,7 +113,7 @@ class MultiHeadAttention(Module):
         self.dropout_layer = Dropout(p=dropout_prob)
 
     def forward(self, query_tokens: Tensor, key_or_value_tokens: Tensor,
-                mask: Tensor = None) -> Tensor:
+                mask: Optional[Tensor] = None) -> Tensor:
         """
         Forward propagation.
 
