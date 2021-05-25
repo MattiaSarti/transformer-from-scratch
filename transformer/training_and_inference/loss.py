@@ -3,7 +3,7 @@ Loss functions and utilities for handling them.
 """
 
 
-from torch import nonzero, Tensor  # noqa: E501 pylint: disable=E0611
+from torch import nonzero, Tensor  # noqa: E501 pylint: disable=no-name-in-module
 from torch.nn import KLDivLoss, Module
 
 

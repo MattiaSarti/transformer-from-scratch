@@ -7,7 +7,7 @@ from math import sqrt
 from typing import Optional
 
 from numpy import ones as np_ones, tril
-from torch import from_numpy, matmul, Tensor  # noqa: E501 pylint: disable=E0611
+from torch import from_numpy, matmul, Tensor  # noqa: E501 pylint: disable=no-name-in-module
 from torch.nn import Dropout, Linear, Module
 from torch.nn.functional import softmax
 

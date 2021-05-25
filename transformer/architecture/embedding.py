@@ -6,7 +6,7 @@ Embedding and positional encoding layers.
 from math import log, sqrt
 
 from torch import arange as torch_arange, cos as torch_cos, exp as torch_exp,\
-    sin as torch_sin, Tensor, zeros as torch_zeros  # noqa: E501 pylint: disable=E0611
+    sin as torch_sin, Tensor, zeros as torch_zeros  # noqa: E501 pylint: disable=no-name-in-module
 from torch.nn import Dropout, Embedding, Module
 
 

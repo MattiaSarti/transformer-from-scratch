@@ -6,7 +6,7 @@ Base layers and utilities.
 from copy import deepcopy
 from typing import Callable
 
-from torch import ones as torch_ones, Tensor, zeros as torch_zeros  # noqa: E501 pylint: disable=E0611
+from torch import ones as torch_ones, Tensor, zeros as torch_zeros  # noqa: E501 pylint: disable=no-name-in-module
 from torch.nn import Dropout, Linear, Module, ModuleList, Parameter
 from torch.nn.functional import log_softmax, relu
 

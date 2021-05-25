@@ -3,11 +3,11 @@ Utilities for loading data.
 """
 
 
-from typing import Generator, Optional
+from typing import Generator, NamedTuple, Optional
 
 from numpy import int64 as numpy_int64
 from numpy.random import randint
-from torch import from_numpy, Tensor  # noqa: E501 pylint: disable=E0611
+from torch import from_numpy, Tensor  # noqa: E501 pylint: disable=no-name-in-module
 from torch.cuda import is_available as cuda_is_available
 # from torchtext.data import batch as torchtext_batch, Field, Iterator
 # from torchtext.datasets import IWSLT
@@ -16,49 +16,124 @@ from transformer.architecture.attention import allowed_positions_to_attend
 # from transformer.training_and_inference.preprocessing import Tokenizer
 
 
-# NOTE: in the original implementation, this was a class while it shouldn't
-# have been, it just stores data after processing them during initialization,
-# which is a NamedTuple in Pyhton:
-class MiniBatch:
-    """
-    Mini-batch of samples.
-    """
+MiniBatch = NamedTuple(
+    'MiniBatch',
+    [
+        ('src_tokens', Tensor),
+        ('src_mask', Tensor),
+        ('tgt_input_tokens', Optional[Tensor]),
+        ('tgt_expected_tokens', Optional[Tensor]),
+        ('actual_n_target_tokens', Optional[Tensor]),
+        ('tgt_mask', Optional[Tensor])
+    ]
+)
 
-    @staticmethod
-    def build_mask(tgt_tokens: Tensor, padding_token: int) -> Tensor:
-        """
-        Build masks of target positions allowed to be attended by the decoder,
-        position by position.
-        """
-        tgt_mask = (tgt_tokens != padding_token).unsqueeze(dim=-2)
-        tgt_mask = tgt_mask & (
-            allowed_positions_to_attend(
-                n_positions=tgt_tokens.size(-1)
-            ).type_as(tgt_mask)
+
+def build_tgt_mask(tgt_tokens: Tensor, padding_token: int) -> Tensor:
+    """
+    Build masks of target positions allowed to be attended by the decoder,
+    position by position.
+    """
+    tgt_mask = (tgt_tokens != padding_token).unsqueeze(dim=-2)
+    tgt_mask = tgt_mask & (
+        allowed_positions_to_attend(
+            n_positions=tgt_tokens.size(-1)
+        ).type_as(tgt_mask)
+    )
+    # NOTE: the original implementation had '&', which is the bit-wise
+    # AND, in place of 'and', which is the logical AND... why? wasn't it
+    # wrong?
+    return tgt_mask
+
+
+def build_mini_batch(src_tokens: Tensor, padding_token: int, tgt_tokens:
+                     Optional[Tensor] = None) -> None:
+    """
+    Arrange source tokens, and optionally target tokens, in a mini-batch
+    suitable for feeding the model.
+    """
+    # all source positions are allowed to be attended, both by the
+    # encoder and by decoder:
+    src_mask = (src_tokens != padding_token).unsqueeze(dim=-2)
+
+    # when target outputs specified:
+    if tgt_tokens is not None:
+        tgt_input_tokens = tgt_tokens[:, :-1]  # excluding </s> token
+        tgt_expected_tokens = tgt_tokens[:, 1:]  # excluding <s> token
+        actual_n_target_tokens = (
+            (tgt_expected_tokens != padding_token).data.sum().item()
         )
-        # NOTE: the original implementation had '&', which is the bit-wise
-        # AND, in place of 'and', which is the logical AND... why? wasn't it
-        # wrong?
-        return tgt_mask
+        # only target positions up to the current position are allowed to
+        # be attended by the decoder, for each position:
+        tgt_mask = build_tgt_mask(tgt_input_tokens,
+                                  padding_token=padding_token)
+        mini_batch_kwargs = {
+            'src_tokens': src_tokens,
+            'src_mask': src_mask,
+            'tgt_input_tokens': tgt_input_tokens,
+            'tgt_expected_tokens': tgt_expected_tokens,
+            'actual_n_target_tokens': actual_n_target_tokens,
+            'tgt_mask': tgt_mask
+        }
+    else:
+        mini_batch_kwargs = {
+            'src_tokens': src_tokens,
+            'src_mask': src_mask,
+            'tgt_input_tokens': None,
+            'tgt_expected_tokens': None,
+            'actual_n_target_tokens': None,
+            'tgt_mask': None
+        }
 
-    def __init__(self, src_tokens: Tensor, padding_token: int,
-                 tgt_tokens: Optional[Tensor] = None) -> None:
-        # source inputs:
-        self.src_tokens = src_tokens
-        # all source positions are allowed to be attended, both by the
-        # encoder and by decoder:
-        self.src_mask = (src_tokens != padding_token).unsqueeze(dim=-2)
-        # when target outputs specified:
-        if tgt_tokens is not None:
-            self.tgt_input_tokens = tgt_tokens[:, :-1]  # excluding </s> token
-            self.tgt_expected_tokens = tgt_tokens[:, 1:]  # excluding <s> token
-            self.actual_n_target_tokens = \
-                (self.tgt_expected_tokens != padding_token).data.sum().item()
-            # only target positions up to the current position are allowed to
-            # be attended by the decoder, for each position:
-            self.tgt_mask = self.build_mask(self.tgt_input_tokens,
-                                            padding_token=padding_token)
-    # NOTE: understand why shapes of tgt masks are different from src masks
+    return MiniBatch(**mini_batch_kwargs)
+
+
+# NOTE: in the original implementation, MiniBatch was a class while it
+# shouldn't have been, it just stores data after processing them during
+# initialization, which could more proprerly be a NamedTuple in Python
+# indeed (as done above):
+# class MiniBatch:
+#     """
+#     Mini-batch of samples.
+#     """
+
+#     @staticmethod
+#     def build_mask(tgt_tokens: Tensor, padding_token: int) -> Tensor:
+#         """
+#         Build masks of target positions allowed to be attended by the
+#         decoder, position by position.
+#         """
+#         tgt_mask = (tgt_tokens != padding_token).unsqueeze(dim=-2)
+#         tgt_mask = tgt_mask & (
+#             allowed_positions_to_attend(
+#                 n_positions=tgt_tokens.size(-1)
+#             ).type_as(tgt_mask)
+#         )
+#         # NOTE: the original implementation had '&', which is the bit-wise
+#         # AND, in place of 'and', which is the logical AND... why? wasn't it
+#         # wrong?
+#         return tgt_mask
+
+#     def __init__(self, src_tokens: Tensor, padding_token: int,
+#                  tgt_tokens: Optional[Tensor] = None) -> None:
+#         # source inputs:
+#         self.src_tokens = src_tokens
+#         # all source positions are allowed to be attended, both by the
+#         # encoder and by decoder:
+#         self.src_mask = (src_tokens != padding_token).unsqueeze(dim=-2)
+#         # when target outputs specified:
+#         if tgt_tokens is not None:
+#             # excluding </s> token:
+#             self.tgt_input_tokens = tgt_tokens[:, :-1]
+#             # excluding <s> token:
+#             self.tgt_expected_tokens = tgt_tokens[:, 1:]
+#             self.actual_n_target_tokens = \
+#                 (self.tgt_expected_tokens != padding_token).data.sum().item()
+#             # only target positions up to the current position are allowed to
+#             # be attended by the decoder, for each position:
+#             self.tgt_mask = self.build_mask(self.tgt_input_tokens,
+#                                             padding_token=padding_token)
+#     # NOTE: understand why shapes of tgt masks are different from src masks
 
 
 # class MiniBatchHandler:

@@ -17,7 +17,7 @@ from transformer.training_and_inference.data import MiniBatch
 from transformer.training_and_inference.optimizer import OptimizerHandler
 
 
-class LossMinimizer:  # pylint: disable=R0903
+class LossMinimizer:  # pylint: disable=too-few-public-methods
     """
     Take care of loss computation, backpropagation and weight update during a
     single training iteration (for single mini-batch in a given epoch).
