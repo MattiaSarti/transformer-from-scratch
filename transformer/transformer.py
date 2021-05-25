@@ -415,28 +415,28 @@ class Transformer:
 
         print('-' * 60)
 
-    def train_on_IWSLT(
-                self,
-                n_epochs: int = 10,
-                mini_batch_size: int = 12000,
-                label_smoothing_factor: float = 0.1,
-                learning_rate_n_warmup_steps: int = 2000,
-                learning_rate_amplification_factor: float = 1,
-                adam_betas: Tuple[float, float] = (0.9, 0.98),
-                adam_epsilon: float = 1e-9
-                ) -> None:
-        """
-        Training the model on an IWSLT 2016 TED talks: the {German -> English}
-        translation task.
-        """
-        raise NotImplementedError
+    # def train_on_IWSLT(
+    #             self,
+    #             n_epochs: int = 10,
+    #             mini_batch_size: int = 12000,
+    #             label_smoothing_factor: float = 0.1,
+    #             learning_rate_n_warmup_steps: int = 2000,
+    #             learning_rate_amplification_factor: float = 1,
+    #             adam_betas: Tuple[float, float] = (0.9, 0.98),
+    #             adam_epsilon: float = 1e-9
+    #             ) -> None:
+    #     """
+    #     Training the model on an IWSLT 2016 TED talks: the German -> English
+    #     translation task.
+    #     """
     #     # identifying GPU devices used to parallelize operations:
     #     device_ids = [0, 1, 2, 3]
 
-    #     # ensuring the mini-batch size is greater than (or at least equal to)
-    #     # the number of GPUs employed:
-    #     assert mini_batch_size >= len(device_ids), "Mini-batch size must " +\
-    #         "be greater than (at least equal to) the number of GPUs employed."
+    #     # ensuring the mini-batch size is greater than (or at least equal
+    #     # to) the number of GPUs employed:
+    #     assert mini_batch_size >= len(device_ids), "Mini-batch size " +\
+    #         "must be greater than (at least equal to) the number of " +\
+    #         "GPUs employed."
 
     #     training_iterator, validation_iterator,\
     #          padding_token = dataset_builder_IWSLT_task(

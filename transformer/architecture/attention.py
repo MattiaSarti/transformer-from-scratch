@@ -25,9 +25,13 @@ def allowed_positions_to_attend(n_positions: int) -> Tensor:
     # I've implemented it in a more optimized way ✓✓
 
 
-def scaled_dot_product_attention(queries: Tensor, keys: Tensor,
-                                 values: Tensor, mask: Optional[Tensor] = None,
-                                 dropout_layer: Optional[Module] = None) -> Tensor:
+def scaled_dot_product_attention(
+    queries: Tensor,
+    keys: Tensor,
+    values: Tensor,
+    mask: Optional[Tensor] = None,
+    dropout_layer: Optional[Module] = None
+) -> Tensor:
     """
     Return result of scaled dot-product attention operation:
     - equation: Attention(Q, K, V) = softmax(QK_T / √dk)V , with dropout
