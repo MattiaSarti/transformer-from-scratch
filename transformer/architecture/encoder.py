@@ -36,8 +36,9 @@ class EncoderBlock(Module):
                  feature_dimension: int, dropout_prob: float) -> None:
         super(EncoderBlock, self).__init__()
         self.feature_dimension = feature_dimension
-        self.self_multi_head_attention_layer = \
+        self.self_multi_head_attention_layer = (
             building_blocks.self_multi_head_attention_layer
+        )
         self.fully_connected_layer = building_blocks.fully_connected_layer
         self.residual_connection_blocks = get_clones(
             module_to_be_cloned=ResidualConnectionAndLayerNorm(
@@ -89,7 +90,6 @@ class Encoder(Module):
         self.layer_blocks = get_clones(module_to_be_cloned=base_block,
                                        n_clones=n_clones)
         self.normalization_layer = LayerNorm(base_block.feature_dimension)
-        # TODO: see TODO below
 
     def forward(self, src_features: Tensor, src_mask: Tensor) -> Tensor:
         """
@@ -110,6 +110,5 @@ class Encoder(Module):
             src_features = layer_block(src_features=src_features,
                                        src_mask=src_mask)
 
+        # a final, additional normalization is carried out:
         return self.normalization_layer(src_features)
-        # TODO: understand why this last, additional normalization and why
-        # it is not to be masked

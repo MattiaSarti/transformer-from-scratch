@@ -7,14 +7,16 @@ from math import sqrt
 from typing import Optional
 
 from numpy import ones as np_ones, tril
-from torch import from_numpy, matmul, Tensor
+from torch import from_numpy, matmul, Tensor  # noqa: E501 pylint: disable=E0611
 from torch.nn import Dropout, Linear, Module
 from torch.nn.functional import softmax
 
 from transformer.architecture.base import get_clones
 
 
-def allowed_positions_to_attend(n_positions: int) -> Tensor:
+def allowed_positions_to_attend(
+        n_positions: int
+) -> Tensor:
     """
     Create masks showing source positions allowed to be attended by each
     target position.
@@ -26,11 +28,11 @@ def allowed_positions_to_attend(n_positions: int) -> Tensor:
 
 
 def scaled_dot_product_attention(
-    queries: Tensor,
-    keys: Tensor,
-    values: Tensor,
-    mask: Optional[Tensor] = None,
-    dropout_layer: Optional[Module] = None
+        queries: Tensor,
+        keys: Tensor,
+        values: Tensor,
+        mask: Optional[Tensor] = None,
+        dropout_layer: Optional[Module] = None
 ) -> Tensor:
     """
     Return result of scaled dot-product attention operation:
@@ -92,9 +94,12 @@ class MultiHeadAttention(Module):
     Multi-Head Attention layer.
     """
 
-    def __init__(self, n_attention_heads: int,
-                 token_representation_dimension: int,
-                 dropout_prob: float) -> None:
+    def __init__(
+            self,
+            n_attention_heads: int,
+            token_representation_dimension: int,
+            dropout_prob: float
+    ) -> None:
         assert (token_representation_dimension % n_attention_heads) == 0
         super(MultiHeadAttention, self).__init__()
         # keys and values feature dimensionality:
@@ -116,8 +121,12 @@ class MultiHeadAttention(Module):
         self.normalized_attention_weights = None
         self.dropout_layer = Dropout(p=dropout_prob)
 
-    def forward(self, query_tokens: Tensor, key_or_value_tokens: Tensor,
-                mask: Optional[Tensor] = None) -> Tensor:
+    def forward(
+            self,
+            query_tokens: Tensor,
+            key_or_value_tokens: Tensor,
+            mask: Optional[Tensor] = None
+    ) -> Tensor:
         """
         Forward propagation.
 

@@ -29,14 +29,10 @@ class Tokenizer:
         """
         Tokenize source language text.
         """
-        return [
-            token for token in self.src_language_model.tokenizer(text)
-        ]
+        return list(self.src_language_model.tokenizer(text))
 
     def tokenize_tgt(self, text: str) -> List[str]:
         """
         Tokenize target language text.
         """
-        return [
-            token for token in self.tgt_language_model.tokenizer(text)
-        ]
+        return list(self.tgt_language_model.tokenizer(text))

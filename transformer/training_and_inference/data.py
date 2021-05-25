@@ -7,16 +7,18 @@ from typing import Generator, Optional
 
 from numpy import int64 as numpy_int64
 from numpy.random import randint
-from torch import from_numpy, Tensor
+from torch import from_numpy, Tensor  # noqa: E501 pylint: disable=E0611
 from torch.cuda import is_available as cuda_is_available
-from torchtext.data import batch as torchtext_batch, Field, Iterator
-from torchtext.datasets import IWSLT
+# from torchtext.data import batch as torchtext_batch, Field, Iterator
+# from torchtext.datasets import IWSLT
 
 from transformer.architecture.attention import allowed_positions_to_attend
-from transformer.training_and_inference.preprocessing import Tokenizer
+# from transformer.training_and_inference.preprocessing import Tokenizer
 
 
-# TODO: this should not be a class, it just stores data after processing them
+# NOTE: in the original implementation, this was a class while it shouldn't
+# have been, it just stores data after processing them during initialization,
+# which is a NamedTuple in Pyhton:
 class MiniBatch:
     """
     Mini-batch of samples.
@@ -59,39 +61,39 @@ class MiniBatch:
     # NOTE: understand why shapes of tgt masks are different from src masks
 
 
-class MiniBatchHandler:
-    """
-    TODO
-    """
+# class MiniBatchHandler:
+#     """
+#     TODO
+#     """
 
-    def __init__(self, max_n_src_tokens_in_mini_batch: int,
-                 max_n_tgt_tokens_in_mini_batch: int) -> None:
-        self.max_n_src_tokens_in_mini_batch = max_n_src_tokens_in_mini_batch
-        self.max_n_tgt_tokens_in_mini_batch = max_n_tgt_tokens_in_mini_batch
+#     def __init__(self, max_n_src_tokens_in_mini_batch: int,
+#                  max_n_tgt_tokens_in_mini_batch: int) -> None:
+#         self.max_n_src_tokens_in_mini_batch = max_n_src_tokens_in_mini_batch
+#         self.max_n_tgt_tokens_in_mini_batch = max_n_tgt_tokens_in_mini_batch
 
-    def get_current_mini_batch_size(self, new, count: int):
-        # TODO: add data type & understand why they add an unused, additional
-        # argument called 'sofar'
-        """
-        TODO
-        """
-        # resetting initial values when starting a new mini-batch size
-        # monitoring (during construction):
-        if count == 1:
-            self.max_n_src_tokens_in_mini_batch = 0
-            self.max_n_tgt_tokens_in_mini_batch = 0
-        # :
-        self.max_n_src_tokens_in_mini_batch = max(
-            self.max_n_src_tokens_in_mini_batch,
-            len()
-        )
-        self.max_n_tgt_tokens_in_mini_batch = max(
-            self.max_n_tgt_tokens_in_mini_batch,
-            len()
-        )
-        # TODO:
-        src_tokens = count * self.max_n_src_tokens_in_mini_batch
-        tgt_tokens = count * self.max_n_tgt_tokens_in_mini_batch
+#     def get_current_mini_batch_size(self, new, count: int):
+#         # TODO: add data type & understand why they add an unused, additional
+#         # argument called 'sofar'
+#         """
+#         TODO
+#         """
+#         # resetting initial values when starting a new mini-batch size
+#         # monitoring (during construction):
+#         if count == 1:
+#             self.max_n_src_tokens_in_mini_batch = 0
+#             self.max_n_tgt_tokens_in_mini_batch = 0
+#         # :
+#         self.max_n_src_tokens_in_mini_batch = max(
+#             self.max_n_src_tokens_in_mini_batch,
+#             len()
+#         )
+#         self.max_n_tgt_tokens_in_mini_batch = max(
+#             self.max_n_tgt_tokens_in_mini_batch,
+#             len()
+#         )
+#         # TODO:
+#         src_tokens = count * self.max_n_src_tokens_in_mini_batch
+#         tgt_tokens = count * self.max_n_tgt_tokens_in_mini_batch
 #         return max(src_tokens, tgt_tokens)
 
 
@@ -173,12 +175,12 @@ def dataset_builder_copy_task(sequence_length: int, vocabulary_size: int,
             padding_token=0  # as assumed above
         )
 
-def dataset_builder_IWSLT_task(max_sequence_length: int) -> None:
-    # TODO: understand returned data type -> Tuple[, , int]:
-    """
-    .
-    """
-    raise NotImplementedError
+
+# def dataset_builder_IWSLT_task(max_sequence_length: int) -> None:
+#     # TODO: understand returned data type -> Tuple[, , int]:
+#     """
+#     .
+#     """
 #     min_vocabulary_counts = 2
 
 #     tokenizer = Tokenizer(src_language='de', tgt_language='en')
@@ -231,8 +233,8 @@ def dataset_builder_IWSLT_task(max_sequence_length: int) -> None:
 #     padding_token = tgt_data_handler.vocab.stoi["<blank>"]
 
 #     # ordering samples in mini-batches so as to group samples with similar
-#     # lengths in the same mini-batches, minimizing padding requirements within
-#     # mini-batches:
+#     # lengths in the same mini-batches, minimizing padding requirements
+#     # within mini-batches:
 #     training_iterator = DatasetIterator(
 #         training_samples,
 #         batch_size=BATCH_SIZE,

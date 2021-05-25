@@ -6,7 +6,7 @@ Base layers and utilities.
 from copy import deepcopy
 from typing import Callable
 
-from torch import ones as torch_ones, Tensor, zeros as torch_zeros
+from torch import ones as torch_ones, Tensor, zeros as torch_zeros  # noqa: E501 pylint: disable=E0611
 from torch.nn import Dropout, Linear, Module, ModuleList, Parameter
 from torch.nn.functional import log_softmax, relu
 
@@ -118,7 +118,7 @@ class ResidualConnectionAndLayerNorm(Module):
                 self.layer_normalization_layer(features)
             )
         )
-    # TODO: understand why norm is applied first instead of last in their
+    # NOTE: normalization is applied first instead of last in their
     # implementation: "Note for code simplicity the norm is first as opposed
     # to last."
 

@@ -6,7 +6,7 @@ Embedding and positional encoding layers.
 from math import log, sqrt
 
 from torch import arange as torch_arange, cos as torch_cos, exp as torch_exp,\
-    sin as torch_sin, Tensor, zeros as torch_zeros
+    sin as torch_sin, Tensor, zeros as torch_zeros  # noqa: E501 pylint: disable=E0611
 from torch.nn import Dropout, Embedding, Module
 
 
@@ -85,7 +85,6 @@ class PositionalEncoding(Module):
         # parameters not requiring backpropagation (i.e. gradient computation
         # and update):
         self.register_buffer('positional_signals', positional_signals)
-        # TODO: understand if redundant with requires_grad=False
 
     def forward(self, token_embeddings) -> Tensor:
         """

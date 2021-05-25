@@ -34,7 +34,7 @@ class Seq2Seq(Module):
         self.decoder = building_blocks.decoder
         self.src_embedder = building_blocks.src_embedder
         self.tgt_embedder = building_blocks.tgt_embedder
-        # the final log-softmax layer does not play a role in the orward
+        # the final log-softmax layer does not play a role in the forward
         # propagation of the model directly but it is still used by the
         # loss computer and backpropagated through, and its parameters get
         # updated this way:
