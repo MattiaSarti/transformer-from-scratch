@@ -120,7 +120,7 @@ if __name__ == '__main__':
     # training the model:
     model.train_on_toy_copy_task(
         n_epochs=10,
-        epoch_samples=30*20,
+        samples_per_epoch=30*20,
         mini_batch_size=30,
         label_smoothing_factor=0.0,
         learning_rate_n_warmup_steps=400,

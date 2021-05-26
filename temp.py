@@ -26,7 +26,7 @@ model = Transformer(
 # training the model:
 model.train_on_toy_copy_task(
     n_epochs=1,
-    epoch_samples=2*2,
+    samples_per_epoch=2*2,
     mini_batch_size=2,
     label_smoothing_factor=0.0,
     learning_rate_n_warmup_steps=400,

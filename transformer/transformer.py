@@ -4,10 +4,11 @@ Transformer, with methods for initialization, training and inference.
 
 
 from copy import deepcopy
-from typing import Tuple, TypedDict
+from typing import NamedTuple, Tuple, TypedDict
 
-from torch import cat as torch_cat, max as torch_max, ones as torch_ones,\
-    Tensor
+from torch import (  # pylint: disable=no-name-in-module
+    cat as torch_cat, max as torch_max, ones as torch_ones, Tensor
+)
 from torch.cuda import is_available as cuda_is_available
 from torch.nn import Sequential
 from torch.nn.init import xavier_uniform_
@@ -26,14 +27,24 @@ from transformer.architecture.seq2seq import Seq2Seq,\
 
 from transformer.training_and_inference.data import\
     dataset_builder_copy_task
+from transformer.training_and_inference.loss import LabelSmoothedLoss
 from transformer.training_and_inference.optimizer import OptimizerHandler
 from transformer.training_and_inference.training_and_inference import\
-    execute_training_epoch, LabelSmoothedLoss, LossMinimizer
+    execute_training_epoch, LossMinimizer
+
+
+AdamOptimizerConfigs = NamedTuple(
+    'AdamOptimizerParameters',
+    [
+        ('adam_betas', Tuple[float, float]),
+        ('adam_epsilon', float)
+    ]
+)
 
 
 class HyperparameterDict(TypedDict):
     """
-    Initialization hyperparemeters with their data types.
+    Model hyperparemeter names with their data types.
     """
 
     src_vocabulary_dimension: int
@@ -47,61 +58,34 @@ class HyperparameterDict(TypedDict):
     dropout_prob: float
 
 
+# pylint: disable=no-member
 class Transformer:
     """
-    Transformer model handler, with methods for initialization, training and
+    Transformer model handler taking care of initialization, training and
     inference.
     """
 
-    def __init__(
-                self,
-                src_vocabulary_dimension: int,
-                tgt_vocabulary_dimension: int,
-                n_encoder_blocks: int = 6,
-                n_decoder_blocks: int = 6,
-                representation_dimension: int = 512,
-                feedforward_dimension: int = 2048,
-                n_attention_heads: int = 8,
-                max_sequence_length: int = 5000,
-                dropout_prob: float = 0.1,
-                path: str = ''
-                ) -> None:
+    # pylint: disable=unused-argument
+    def __init__(  # pylint: disable=too-many-arguments
+            self,
+            src_vocabulary_dimension: int,
+            tgt_vocabulary_dimension: int,
+            n_encoder_blocks: int = 6,
+            n_decoder_blocks: int = 6,
+            representation_dimension: int = 512,
+            feedforward_dimension: int = 2048,
+            n_attention_heads: int = 8,
+            max_sequence_length: int = 5000,
+            dropout_prob: float = 0.1,
+    ) -> None:
+        # setting the hyperparameters:
+        hyperparameters = locals()
+        del hyperparameters['path']
+        self._set_hyperparameters(hyperparameters=hyperparameters)
 
-        # if path not given:
-        if not path:
-
-            # setting the hyperparameters:
-            hyperparameters = locals()
-            del hyperparameters['path']
-            self._set_hyperparameters(hyperparameters=hyperparameters)
-
-            # initializing the new model:
-            self._build_model_architecture()
-
-        # otherwise:
-        else:
-
-            pass
-
-            # # checking no (possibly different) hyperparameters are specified:
-
-            # # retrieving the existing hyperparameters:
-            # self.src_vocabulary_dimension=\
-            #     hyperparameters['src_vocabulary_dimension'],
-            # self.tgt_vocabulary_dimension=\
-            #     hyperparameters['tgt_vocabulary_dimension'],
-            # self.n_encoder_blocks=hyperparameters['n_encoder_blocks'],
-            # self.n_decoder_blocks=hyperparameters['n_decoder_blocks'],
-            # self.token_representation_dimension=\
-            #     hyperparameters['representation_dimension'],
-            # self.feedforward_dimension=\
-            #     hyperparameters['feedforward_dimension'],
-            # self.n_attention_heads=hyperparameters['n_attention_heads'],
-            # self.max_sequence_length=hyperparameters['max_sequence_length'],
-            # self.dropout_prob=hyperparameters['dropout_prob']
-
-            # # loading an existing model:
-            # self.model = ...load
+        # initializing the new model:
+        self._build_model_architecture()
+    # pylint: enable=unused-argument
 
     def _build_model_architecture(self) -> None:
         """
@@ -207,14 +191,14 @@ class Transformer:
         for key, value in hyperparameters.items():
             setattr(self, key, value)
 
-    def predict(
-                self,
-                src_sequences: Tensor,
-                src_masks: Tensor,
-                tgt_bos_token: int,
-                decoding_method: str = 'greedy',
-                gpu_if_possible: bool = True
-                ) -> Tensor:
+    def predict(  # pylint: disable=too-many-arguments
+            self,
+            src_sequences: Tensor,
+            src_masks: Tensor,
+            tgt_bos_token: int,
+            decoding_method: str = 'greedy',
+            gpu_if_possible: bool = True
+    ) -> Tensor:
         """
         Predict target token sequences from source token sequences.
         """
@@ -303,18 +287,20 @@ class Transformer:
         raise NotImplementedError("Unavailable decoding method: "
                                   + decoding_method)
 
-    def train_on_toy_copy_task(
-                self,
-                n_epochs: int,
-                epoch_samples: int,
-                mini_batch_size: int,
-                label_smoothing_factor: float,
-                learning_rate_n_warmup_steps: int = 4000,
-                learning_rate_amplification_factor: float = 2,
-                adam_betas: Tuple[float, float] = (0.9, 0.98),
-                adam_epsilon: float = 1e-9,
-                gpu_if_possible: bool = True
-                ) -> None:
+    def train_on_toy_copy_task(  # pylint: disable=too-many-arguments
+            self,
+            n_epochs: int,
+            samples_per_epoch: int,
+            mini_batch_size: int,
+            label_smoothing_factor: float,
+            learning_rate_n_warmup_steps: int = 4000,
+            learning_rate_amplification_factor: float = 2,
+            adam_parameters: AdamOptimizerConfigs = AdamOptimizerConfigs(
+                adam_betas=(0.9, 0.98),
+                adam_epsilon=1e-9
+            ),
+            gpu_if_possible: bool = True
+    ) -> None:
         """
         Training the model on a toy task: copying the source sentence, with an
         identical target. Teacher forcing is applied, avoiding sequential
@@ -355,8 +341,8 @@ class Transformer:
             optimizer=Adam(
                 params=self.model.parameters(),
                 lr=0,  # as learning rate is customized externally
-                betas=adam_betas,
-                eps=adam_epsilon
+                betas=adam_parameters.adam_betas,
+                eps=adam_parameters.adam_epsilon
             ),
             n_warmup_steps=learning_rate_n_warmup_steps,
             amplification_factor=learning_rate_amplification_factor,
@@ -378,12 +364,12 @@ class Transformer:
                     sequence_length=self.max_sequence_length,
                     vocabulary_size=self.src_vocabulary_dimension,
                     mini_batch_size=mini_batch_size,
-                    n_mini_batches=(int(epoch_samples / mini_batch_size)),
+                    n_mini_batches=(int(samples_per_epoch / mini_batch_size)),
                     gpu_if_possible=gpu_if_possible
                 ),
                 model=self.model,
                 loss_minimizer=LossMinimizer(
-                    final_log_softmax_layer=self.model.log_softmax_layer,
+                    log_softmax_layer=self.model.log_softmax_layer,
                     criterion=criterion,
                     optimizer_handler=optimizer_handler
                 ),
@@ -394,24 +380,30 @@ class Transformer:
             self.model.eval()
 
             # evaluating performances:
-            loss = execute_training_epoch(
-                dataset_iterator=dataset_builder_copy_task(
-                    sequence_length=self.max_sequence_length,
-                    vocabulary_size=self.src_vocabulary_dimension,
-                    mini_batch_size=mini_batch_size,
-                    n_mini_batches=(int(n_epochs / mini_batch_size) + 1),
-                    gpu_if_possible=gpu_if_possible
-                ),
-                model=self.model,
-                loss_minimizer=LossMinimizer(
-                    final_log_softmax_layer=self.model.log_softmax_layer,
-                    criterion=criterion,
-                    # no backpropagation and weight update:
-                    optimizer_handler=None
-                ),
-                verbose=False
+            print(
+                "Average Loss per Token: {loss:.3f}"
+                .format(
+                    loss=execute_training_epoch(
+                        dataset_iterator=dataset_builder_copy_task(
+                            sequence_length=self.max_sequence_length,
+                            vocabulary_size=self.src_vocabulary_dimension,
+                            mini_batch_size=mini_batch_size,
+                            n_mini_batches=(
+                                int(n_epochs / mini_batch_size) + 1
+                            ),
+                            gpu_if_possible=gpu_if_possible
+                        ),
+                        model=self.model,
+                        loss_minimizer=LossMinimizer(
+                            log_softmax_layer=self.model.log_softmax_layer,
+                            criterion=criterion,
+                            # no backpropagation and weight update:
+                            optimizer_handler=None
+                        ),
+                        verbose=False
+                    )
+                )
             )
-            print("Average Loss per Token: {l:.3f}".format(l=loss))
 
         print('-' * 60)
 
@@ -498,7 +490,7 @@ class Transformer:
     #             dataset_iterator=training_iterator,
     #             model=parallelized_model,
     #             loss_minimizer=DataParallelLossMinimizer(
-    #                 final_log_softmax_layer=self.model.log_softmax_layer,
+    #                 log_softmax_layer=self.model.log_softmax_layer,
     #                 criterion=criterion,
     #                 device_ids=device_ids,
     #                 optimizer_handler=optimizer_handler
@@ -514,7 +506,7 @@ class Transformer:
     #             dataset_iterator=validation_iterator,
     #             model=parallelized_model,
     #             loss_minimizer=DataParallelLossMinimizer(
-    #                 final_log_softmax_layer=self.model.log_softmax_layer,
+    #                 log_softmax_layer=self.model.log_softmax_layer,
     #                 criterion=criterion,
     #                 device_ids=device_ids,
     #                 # no backpropagation and weight update:
@@ -525,3 +517,4 @@ class Transformer:
     #         print("Average Loss per Token: {l:.3f}".format(l=loss))
 
     #     print('-' * 60)
+# pylint: enable=no-member

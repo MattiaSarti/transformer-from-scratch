@@ -23,10 +23,10 @@ class LossMinimizer:  # pylint: disable=too-few-public-methods
     single training iteration (for single mini-batch in a given epoch).
     """
 
-    def __init__(self, final_log_softmax_layer: Module, criterion: Module,
+    def __init__(self, log_softmax_layer: Module, criterion: Module,
                  optimizer_handler: Optional[OptimizerHandler] = None)\
             -> float:
-        self.final_log_softmax_layer = final_log_softmax_layer
+        self.final_log_softmax_layer = log_softmax_layer
         self.criterion = criterion
         self.optimizer_handler = optimizer_handler
 
@@ -87,11 +87,11 @@ class LossMinimizer:  # pylint: disable=too-few-public-methods
 #     among different GPUS according to a data-parallel strategy.
 #     """
 
-#     def __init__(self, final_log_softmax_layer: Module, criterion: Module,
+#     def __init__(self, log_softmax_layer: Module, criterion: Module,
 #                  device_ids: List[int], chunk_size: int = 5,
 #                  optimizer_handler: Optional[OptimizerHandler] = None)\
 #             -> None:
-#         self.final_log_softmax_layer = final_log_softmax_layer
+#         self.final_log_softmax_layer = log_softmax_layer
 #         self.criterion = parallel_replicate(criterion, devices=device_ids)
 #         self.optimizer_handler = optimizer_handler
 #         self.device_ids = device_ids
