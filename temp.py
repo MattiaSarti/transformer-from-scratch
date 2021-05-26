@@ -1,7 +1,12 @@
+"""
+Temp
+"""
+
+
 from transformer.transformer import Transformer
 
 
-max_sequence_length = 20  # [number of tokens]
+MAX_SEQUENCE_LENGTH = 20  # [number of tokens]
 
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
@@ -14,7 +19,7 @@ model = Transformer(
     representation_dimension=512,
     feedforward_dimension=2048,
     n_attention_heads=8,
-    max_sequence_length=max_sequence_length,
+    max_sequence_length=MAX_SEQUENCE_LENGTH,
     dropout_prob=0.1
 )
 

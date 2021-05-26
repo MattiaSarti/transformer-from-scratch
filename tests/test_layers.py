@@ -4,11 +4,13 @@ Utilities for testing each single layer kind independently.
 
 
 from copy import deepcopy
-from unittest import skipIf, TestCase
+from unittest import TestCase
 
-from torch import abs as torch_abs, equal as torch_equal, float as\
-    torch_float, is_tensor, long as torch_long, rand as torch_rand,\
-        randint as torch_randint, sum as torch_sum
+from torch import (  # pylint: disable=no-name-in-module
+    abs as torch_abs, equal as torch_equal, float as torch_float, is_tensor,
+    long as torch_long, rand as torch_rand, randint as torch_randint, sum as
+    torch_sum
+)
 from torch.nn import Sequential
 from torch.optim import SGD
 
@@ -51,22 +53,20 @@ def skip_if_no_parameters(function):
     return wrapper
 
 
-class ReproducibleTestLayer:
+class ReproducibleTestLayer:  # pylint: disable=too-few-public-methods
     """
     Common setups for reproducible tests.
     """
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-    def setUp(self):
+    def setUp(self):  # pylint: disable=no-self-use,invalid-name
         """
         Setup executed before every method (test) for reproducible results.
         """
         make_results_reproducible()
 
 
-class OutputShapesAndDTypesLayerTests:
+# pylint: disable=no-member
+class OutputShapesAndDTypesLayerTests:  # noqa: E501 pylint: disable=too-few-public-methods
     """
     Tests for shapes and data types of layer outputs.
     """
@@ -114,9 +114,11 @@ class OutputShapesAndDTypesLayerTests:
             # checking the data type:
             with self.subTest(subtest_name):
                 self.assertEqual(actual_dtype, expected_dtype)
+# pylint: enable=no-member
 
 
-class GradientsAndParameterUpdatesLayerTests:
+# pylint: disable=no-member
+class GradientsAndParameterUpdatesLayerTests:  # noqa: E501 pylint: disable=too-few-public-methods
     """
     Tests for layer gradient computations and parameters updates.
     """
@@ -188,13 +190,14 @@ class GradientsAndParameterUpdatesLayerTests:
             with self.subTest(subtest_name):
                 # only parameters that require gradient computation. i.e.
                 # adjustment, are considered:
-                if parameter_vector.requires_grad:
+                if updated_parameter_vector.requires_grad:
                     self.assertFalse(
                         torch_equal(
                             initial_parameter_dict[name],  # initial values
                             updated_parameter_vector  # updated values
                         )
                     )
+# pylint: enable=no-member
 
 
 class StandardTestLayer(OutputShapesAndDTypesLayerTests,
@@ -566,7 +569,7 @@ class TestMultiHeadAttention(ReproducibleTestLayer, StandardTestLayer,
         }
         cls.expected_output_shapes = [
             (MINI_BATCH_SIZE, MAX_SEQUENCE_LENGTH - 1,
-                REPRESENTATION_DIMENSION)
+             REPRESENTATION_DIMENSION)
         ]
         cls.expected_output_dtypes = [
             torch_float
@@ -664,9 +667,7 @@ class TestResidualConnectionAndLayerNorm(ReproducibleTestLayer,
                       REPRESENTATION_DIMENSION),
                 dtype=torch_float
             ),
-            'base_layer_call': lambda x: position_wise_feed_forward(
-                x
-            )
+            'base_layer_call': position_wise_feed_forward
         }
         cls.expected_output_shapes = [
             (MINI_BATCH_SIZE, MAX_SEQUENCE_LENGTH, REPRESENTATION_DIMENSION)

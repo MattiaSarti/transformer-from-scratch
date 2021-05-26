@@ -7,45 +7,48 @@ achieved.
 
 from typing import Tuple
 
-from torch import cat as torch_cat, long as torch_long, ones as torch_ones,\
-    unsqueeze as torch_unsqueeze, tensor, Tensor, zeros as torch_zeros
+from torch import (  # pylint: disable=no-name-in-module
+    cat as torch_cat, long as torch_long, ones as torch_ones, unsqueeze as
+    torch_unsqueeze, tensor, Tensor, zeros as torch_zeros
+)
 
 from transformer.training_and_inference.reproducibility import\
     make_results_reproducible
 from transformer.transformer import Transformer
 
 
-def get_sequence_from_user() -> Tuple[Tensor, Tensor]:
+def get_sequence_from_user(max_sequence_length: int) -> Tuple[Tensor, Tensor]:
     """
     Ask the user to enter a sequence of token ids and convert it to source
     token tensor and source mask tensor for feeding the model.
     """
-    enter_message = "\nEnter the desired source sequence token ids separated"\
-        " by spaces: "
+    enter_message = (
+        "\nEnter the desired source sequence token ids separated by spaces: "
+    )
 
     # asking for user input and splitting it into a sequence of token ids:
-    src_sequence = [x for x in map(int, input(enter_message).split())]
-    n_tokens = len(src_sequence)
+    src_seq = list(map(int, input(enter_message).split()))
+    n_tokens = len(src_seq)
 
     if n_tokens > max_sequence_length:
         # truncating the sequence if its length is higher than allowed:
         n_tokens = max_sequence_length
-        src_sequence = src_sequence[: max_sequence_length]
+        src_seq = src_seq[: max_sequence_length]
 
     # padding the sequence if its length is lower than the maximum one and
     # converting it to the right format:
-    src_sequence = torch_cat(
+    src_seq = torch_cat(
         (
-            tensor(src_sequence, dtype=torch_long),
+            tensor(src_seq, dtype=torch_long),  # noqa: E501 pylint: disable=not-callable
             torch_zeros((max_sequence_length - n_tokens),
                         dtype=torch_long)
         ),
         dim=-1
     )
-    src_sequence = torch_unsqueeze(input=src_sequence, dim=0)
+    src_seq = torch_unsqueeze(input=src_seq, dim=0)
 
     # creating the sequence mask based on the padding done:
-    src_sequence_mask = torch_cat(
+    src_seq_mask = torch_cat(
         (
             torch_ones((1, 1, n_tokens), dtype=torch_long),
             torch_zeros((1, 1, max_sequence_length - n_tokens),
@@ -54,17 +57,17 @@ def get_sequence_from_user() -> Tuple[Tensor, Tensor]:
         dim=-1
     )
 
-    return src_sequence, src_sequence_mask
+    return src_seq, src_seq_mask
 
 
-def print_src_vs_tgt(src_sequence: Tensor, tgt_sequence_prediction: Tensor)\
+def print_src_vs_tgt(src_seq: Tensor, tgt_seq_prediction: Tensor)\
          -> None:
     """
     Print source and predicted sequences.
     """
     print('\n')
-    print("Source sequence:", src_sequence)
-    print("-> Predicted target sequence:", tgt_sequence_prediction)
+    print("Source sequence:", src_seq)
+    print("-> Predicted target sequence:", tgt_seq_prediction)
     print('\n')
 
 
@@ -73,7 +76,7 @@ if __name__ == '__main__':
     # for reproducible results:
     make_results_reproducible()
 
-    max_sequence_length = 10  # [number of tokens]
+    MAX_SEQUENCE_LENGTH = 10  # [number of tokens]
 
     # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
@@ -86,7 +89,7 @@ if __name__ == '__main__':
         representation_dimension=512,
         feedforward_dimension=2048,
         n_attention_heads=8,
-        max_sequence_length=max_sequence_length,
+        max_sequence_length=MAX_SEQUENCE_LENGTH,
         dropout_prob=0.1
     )
 
@@ -94,10 +97,10 @@ if __name__ == '__main__':
 
     # evaluating a single prediction before training:
 
-    src_sequence = tensor([x for x in range(1, max_sequence_length + 1)])
-    # src_sequence = tensor([2] * max_sequence_length)  # TODO
+    src_sequence = tensor(list(range(1, MAX_SEQUENCE_LENGTH + 1)))  # noqa: E501 pylint: disable=not-callable
+    # src_sequence = tensor([2] * MAX_SEQUENCE_LENGTH)  # TODO  # noqa: E501 pylint: disable=not-callable
     src_sequence = torch_unsqueeze(input=src_sequence, dim=0)
-    src_sequence_mask = torch_ones((1, 1, max_sequence_length))
+    src_sequence_mask = torch_ones((1, 1, MAX_SEQUENCE_LENGTH))
 
     tgt_sequence_prediction = model.predict(
         src_sequences=src_sequence,
@@ -108,8 +111,8 @@ if __name__ == '__main__':
     )
 
     print_src_vs_tgt(
-        src_sequence=src_sequence,
-        tgt_sequence_prediction=tgt_sequence_prediction
+        src_seq=src_sequence,
+        tgt_seq_prediction=tgt_sequence_prediction
     )
 
     # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -138,8 +141,8 @@ if __name__ == '__main__':
     )
 
     print_src_vs_tgt(
-        src_sequence=src_sequence,
-        tgt_sequence_prediction=tgt_sequence_prediction
+        src_seq=src_sequence,
+        tgt_seq_prediction=tgt_sequence_prediction
     )
 
     # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -149,7 +152,9 @@ if __name__ == '__main__':
     while True:
 
         # asking for user input and extracting the sequence ids and its mask:
-        src_sequence, src_sequence_mask = get_sequence_from_user()
+        src_sequence, src_sequence_mask = get_sequence_from_user(
+            max_sequence_length=MAX_SEQUENCE_LENGTH
+        )
 
         # evaluating the respective prediction:
 
@@ -162,6 +167,6 @@ if __name__ == '__main__':
         )
 
         print_src_vs_tgt(
-            src_sequence=src_sequence,
-            tgt_sequence_prediction=tgt_sequence_prediction
+            src_seq=src_sequence,
+            tgt_seq_prediction=tgt_sequence_prediction
         )
