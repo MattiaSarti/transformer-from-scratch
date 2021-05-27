@@ -19,4 +19,4 @@ class TestModel(TestCase):
         the model when testing it across the different methods, that can use
         a common instance.
         """
-        pass
+        pass  #  - ideas (I mean a whole training - prediction): test loss, test determinism

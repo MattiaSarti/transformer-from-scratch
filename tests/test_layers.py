@@ -11,7 +11,7 @@ from torch import (  # pylint: disable=no-name-in-module
     long as torch_long, rand as torch_rand, randint as torch_randint, sum as
     torch_sum
 )
-from torch.nn import Sequential
+from torch.nn import Linear, ModuleList, Sequential
 from torch.optim import SGD
 
 from tests.reproducible_tests import ReproducibleTestLayer
@@ -463,6 +463,37 @@ class TestEmbedder(ReproducibleTestLayer, StandardTestLayer, TestCase):
         cls.expected_output_dtypes = [
             torch_float
         ]
+
+
+class TestGetClones(ReproducibleTestLayer, TestCase):
+    """
+    Tests for get_clones.
+    """
+
+    def test_modulelist_of_deeply_cloned_modules(self):
+        """
+        Test that a ModuleList of independent (i.e. with no common reference,
+        deeply cloned) modules is returned.
+        """
+        base_module = Linear(in_features=8, out_features=6)
+        list_of_cloned_modules = get_clones(
+            module_to_be_cloned=base_module,
+            n_clones=3
+        )
+
+        # asserting that the output is an actual ModuleList:
+        with self.subTest('output as ModuleList'):
+            self.assertIsInstance(list_of_cloned_modules, ModuleList)
+
+        # asserting that the modules is the ModuleList have been deeply
+        # cloned:
+        with self.subTest('deeply-cloned modules'):
+            for i, module_i in enumerate(list_of_cloned_modules):
+                # asserting not referenced to the original module:
+                self.assertIsNot(module_i, base_module)
+                # asserting not referenced to the other cloned modules:
+                for module_j in enumerate(list_of_cloned_modules[i+1:]):
+                    self.assertIsNot(module_j, module_i)
 
 
 class TestLayerNorm(ReproducibleTestLayer, StandardTestLayer,
