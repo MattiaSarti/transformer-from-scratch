@@ -8,11 +8,11 @@ from typing import Generator, NamedTuple, Optional
 from numpy import int64 as numpy_int64
 from numpy.random import randint
 from torch import from_numpy, Tensor  # noqa: E501 pylint: disable=no-name-in-module
-from torch.cuda import is_available as cuda_is_available
 # from torchtext.data import batch as torchtext_batch, Field, Iterator
 # from torchtext.datasets import IWSLT
 
 from transformer.architecture.attention import allowed_positions_to_attend
+from transformer.training_and_inference.device import select_device
 # from transformer.training_and_inference.preprocessing import Tokenizer
 
 
@@ -228,11 +228,7 @@ def dataset_builder_copy_task(sequence_length: int, vocabulary_size: int,
         )
 
         # selecting the device handling computations:
-        if gpu_if_possible:
-            # employing a GPU if possible:
-            device = 'cuda:0' if cuda_is_available() else 'cpu'
-        else:
-            device = 'cpu'
+        device = select_device(gpu_if_possible=gpu_if_possible)
 
         # moving samples to such device:
         samples = samples.to(device)

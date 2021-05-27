@@ -5,8 +5,13 @@ Utilities for testing the model as a whole.
 
 from unittest import TestCase
 
+from tests.reproducible_tests import ReproducibleTestLayer
+
 
 class TestModel(TestCase):
+    """
+    Tests for the whole Transformer model.
+    """
 
     def setUpClass(self):
         """

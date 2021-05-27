@@ -14,18 +14,23 @@ from torch import (  # pylint: disable=no-name-in-module
 from torch.nn import Sequential
 from torch.optim import SGD
 
-from transformer.architecture.attention import allowed_positions_to_attend,\
-    MultiHeadAttention, scaled_dot_product_attention
-from transformer.architecture.base import get_clones, LayerNorm, LogSoftmax,\
-    PositionWiseFeedForward, ResidualConnectionAndLayerNorm
+from tests.reproducible_tests import ReproducibleTestLayer
+from transformer.architecture.attention import (
+    allowed_positions_to_attend, MultiHeadAttention,
+    scaled_dot_product_attention
+)
+from transformer.architecture.base import (
+    get_clones, LayerNorm, LogSoftmax, PositionWiseFeedForward,
+    ResidualConnectionAndLayerNorm
+)
 from transformer.architecture.embedding import Embedder, PositionalEncoding
-from transformer.architecture.encoder import Encoder, EncoderBlock,\
-    EncoderBlockBuildingBlocks
-from transformer.architecture.decoder import Decoder, DecoderBlock,\
-    DecoderBlockBuildingBlocks
+from transformer.architecture.encoder import (
+    Encoder, EncoderBlock, EncoderBlockBuildingBlocks
+)
+from transformer.architecture.decoder import (
+    Decoder, DecoderBlock, DecoderBlockBuildingBlocks
+)
 from transformer.architecture.seq2seq import Seq2Seq, Seq2SeqBuildingBlocks
-from transformer.training_and_inference.reproducibility import\
-    make_results_reproducible
 
 
 # hyperparameters for tests - all different enough to avoid coincidences:
@@ -51,18 +56,6 @@ def skip_if_no_parameters(function):
         else:
             function(self, *args, **kwargs)
     return wrapper
-
-
-class ReproducibleTestLayer:  # pylint: disable=too-few-public-methods
-    """
-    Common setups for reproducible tests.
-    """
-
-    def setUp(self):  # pylint: disable=no-self-use,invalid-name
-        """
-        Setup executed before every method (test) for reproducible results.
-        """
-        make_results_reproducible()
 
 
 # pylint: disable=no-member
@@ -203,14 +196,13 @@ class GradientsAndParameterUpdatesLayerTests:  # noqa: E501 pylint: disable=too-
 class StandardTestLayer(OutputShapesAndDTypesLayerTests,
                         GradientsAndParameterUpdatesLayerTests):
     """
-    Common standard shape and data type input-output tests.
+    Common standard shape and data type input-output tests and gradient flow
+    and parameter update tests.
     """
 
 
 # ----------------------------------------------------------------------------
-# ----------------------------------------------------------------------------
 # Actual Tests Follow
-# ----------------------------------------------------------------------------
 # ----------------------------------------------------------------------------
 
 

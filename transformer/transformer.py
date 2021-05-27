@@ -9,28 +9,29 @@ from typing import NamedTuple, Tuple, TypedDict
 from torch import (  # pylint: disable=no-name-in-module
     cat as torch_cat, max as torch_max, ones as torch_ones, Tensor
 )
-from torch.cuda import is_available as cuda_is_available
 from torch.nn import Sequential
 from torch.nn.init import xavier_uniform_
 from torch.optim import Adam
 
-from transformer.architecture.attention import allowed_positions_to_attend,\
-    MultiHeadAttention
+from transformer.architecture.attention import (
+    allowed_positions_to_attend, MultiHeadAttention
+)
 from transformer.architecture.base import LogSoftmax, PositionWiseFeedForward
 from transformer.architecture.embedding import Embedder, PositionalEncoding
-from transformer.architecture.encoder import Encoder, EncoderBlock,\
-    EncoderBlockBuildingBlocks
-from transformer.architecture.decoder import Decoder, DecoderBlock,\
-    DecoderBlockBuildingBlocks
-from transformer.architecture.seq2seq import Seq2Seq,\
-    Seq2SeqBuildingBlocks
-
-from transformer.training_and_inference.data import\
-    dataset_builder_copy_task
+from transformer.architecture.encoder import (
+    Encoder, EncoderBlock, EncoderBlockBuildingBlocks
+)
+from transformer.architecture.decoder import (
+    Decoder, DecoderBlock, DecoderBlockBuildingBlocks
+)
+from transformer.architecture.seq2seq import Seq2Seq, Seq2SeqBuildingBlocks
+from transformer.training_and_inference.data import dataset_builder_copy_task
+from transformer.training_and_inference.device import select_device
 from transformer.training_and_inference.loss import LabelSmoothedLoss
 from transformer.training_and_inference.optimizer import OptimizerHandler
-from transformer.training_and_inference.training_and_inference import\
+from transformer.training_and_inference.training_and_inference import (
     execute_training_epoch, LossMinimizer
+)
 
 
 AdamOptimizerConfigs = NamedTuple(
@@ -203,11 +204,7 @@ class Transformer:
         Predict target token sequences from source token sequences.
         """
         # selecting the device handling computations:
-        if gpu_if_possible:
-            # employing a GPU if possible:
-            device = 'cuda:0' if cuda_is_available() else 'cpu'
-        else:
-            device = 'cpu'
+        device = select_device(gpu_if_possible=gpu_if_possible)
 
         # moving model parameters and buffers to such device:
         self.model.to(device)
@@ -321,11 +318,7 @@ class Transformer:
         )
 
         # selecting the device handling computations:
-        if gpu_if_possible:
-            # employing a GPU if possible:
-            device = 'cuda:0' if cuda_is_available() else 'cpu'
-        else:
-            device = 'cpu'
+        device = select_device(gpu_if_possible=gpu_if_possible)
 
         # moving the model parameters and buffers to such device:
         self.model.to(device)
