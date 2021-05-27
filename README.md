@@ -1,16 +1,11 @@
 # How I Reimplemented the Original Transformer [1] from Scratch
-An exercise to learn about NLP: a PyTorch implementation that followed an already existing one [2] - with some small differences, though - to prove myself I could build a Transformer from scratch and train it.\
+
+An exercise to learn about NLP: a PyTorch implementation of the original Transformer that followed an already existing one [2] - with some small differences, though - to prove myself I could build a Transformer from scratch and train it.\
 After gaining theoretical intuition behind the architecture logic [3], I went through every line of code [2] and the respective libraries' docs, reproducing such steps while customizing, testing and abundantly documenting them.
 
 ## Purpose
-I was mostly interested in the architecture, but following [2] I also trained it on the German-to-English translation task of the IWSLT 2016 dataset (original, I know...) to see it in action:\
-Ours\
-Google Translate (as of 6 p.m. on December 21st)
-
-#### Why is it not a good task to apply a Transformer?
-mmmm
-#### Why did I choose such task anyway, then?
-Because I was into the architecture, I just trained it to see it work correctly without employing an external dataset.
+I was interested in the [architecture definition](https://github.com/MattiaSarti/transformer-from-scratch/tree/main/transformer/architecture), but following [2] I also trained the model on a toy source-to-target copy task to ensure its proper functioning. An example of resulting translations follows, reproducible by running ```python try_toy_task.py``` from the root directory of the repository.
+<... CMD screenshot here ...>
 
 ### Tests
 ✓ Unit Tests: passed\
@@ -23,6 +18,6 @@ Because I was into the architecture, I just trained it to see it work correctly 
 ✓ (deliberately) exaggeratedly commented
 
 ### References
-[1] Attention Is All You Need, 2017, Vaswani et al.\
-[2] The Annotated Transformer, 2018, Rush\
-[3] http:<span>//jalammar.github.io</span>/illustrated-transformer/
+[1] [Attention Is All You Need, 2017, Vaswani et al.](https://arxiv.org/abs/1706.03762)\
+[2] [The Annotated Transformer, 2018, Rush](https://www.aclweb.org/anthology/W18-2509/)\
+[3] [http://jalammar.github.io/illustrated-transformer/](http://jalammar.github.io/illustrated-transformer/)
