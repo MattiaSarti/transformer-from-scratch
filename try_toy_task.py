@@ -63,7 +63,7 @@ def get_sequence_from_user(max_sequence_length: int) -> Tuple[Tensor, Tensor]:
 def print_src_vs_tgt(src_seq: Tensor, tgt_seq_prediction: Tensor)\
          -> None:
     """
-    Print source and predicted sequences.
+    Print source sequence and predicted sequence to standard output.
     """
     print('\n')
     print("Source sequence:", src_seq)
@@ -73,13 +73,12 @@ def print_src_vs_tgt(src_seq: Tensor, tgt_seq_prediction: Tensor)\
 
 if __name__ == '__main__':
 
+    MAX_SEQUENCE_LENGTH = 10  # [number of tokens]
+
     # for reproducible results:
     make_results_reproducible()
 
-    MAX_SEQUENCE_LENGTH = 10  # [number of tokens]
-
     # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-
     # initializing the model:
     model = Transformer(
         src_vocabulary_dimension=11,
@@ -94,14 +93,13 @@ if __name__ == '__main__':
     )
 
     # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-
     # evaluating a single prediction before training:
-
-    src_sequence = tensor(list(range(1, MAX_SEQUENCE_LENGTH + 1)))  # noqa: E501 pylint: disable=not-callable
-    # src_sequence = tensor([2] * MAX_SEQUENCE_LENGTH)  # TODO  # noqa: E501 pylint: disable=not-callable
-    src_sequence = torch_unsqueeze(input=src_sequence, dim=0)
+    src_sequence = torch_unsqueeze(
+        input=tensor(list(range(1, MAX_SEQUENCE_LENGTH + 1))),  # noqa: E501 pylint: disable=not-callable
+        # input=tensor([2] * MAX_SEQUENCE_LENGTH),  # TODO  # noqa: E501 pylint: disable=not-callable
+        dim=0
+    )
     src_sequence_mask = torch_ones((1, 1, MAX_SEQUENCE_LENGTH))
-
     tgt_sequence_prediction = model.predict(
         src_sequences=src_sequence,
         src_masks=src_sequence_mask,
@@ -109,14 +107,12 @@ if __name__ == '__main__':
         decoding_method='greedy',
         gpu_if_possible=True
     )
-
     print_src_vs_tgt(
         src_seq=src_sequence,
         tgt_seq_prediction=tgt_sequence_prediction
     )
 
     # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-
     # training the model:
     model.train_on_toy_copy_task(
         n_epochs=10,
@@ -129,9 +125,7 @@ if __name__ == '__main__':
     )
 
     # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-
     # evaluating the same, single prediction after training:
-
     tgt_sequence_prediction = model.predict(
         src_sequences=src_sequence,
         src_masks=src_sequence_mask,
@@ -139,16 +133,13 @@ if __name__ == '__main__':
         decoding_method='greedy',
         gpu_if_possible=True
     )
-
     print_src_vs_tgt(
         src_seq=src_sequence,
         tgt_seq_prediction=tgt_sequence_prediction
     )
 
     # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-
     print('~'*60 + '\n' + '~'*60)
-
     while True:
 
         # asking for user input and extracting the sequence ids and its mask:
@@ -157,7 +148,6 @@ if __name__ == '__main__':
         )
 
         # evaluating the respective prediction:
-
         tgt_sequence_prediction = model.predict(
             src_sequences=src_sequence,
             src_masks=src_sequence_mask,
@@ -165,7 +155,6 @@ if __name__ == '__main__':
             decoding_method='greedy',
             gpu_if_possible=True
         )
-
         print_src_vs_tgt(
             src_seq=src_sequence,
             tgt_seq_prediction=tgt_sequence_prediction

@@ -5,6 +5,9 @@ different behavior achieved.
 """
 
 
+raise NotImplementedError
+
+
 # from transformer.training_and_inference.reproducibility import\
 #     make_results_reproducible
 # from .transformer.transformer import Transformer
