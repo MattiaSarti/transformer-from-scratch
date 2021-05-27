@@ -1,6 +1,6 @@
-# How I Reimplemented the Original Transformer [1] from Scratch
+# How I Reimplemented the Original Transformer from Scratch
 
-An exercise to learn about Transformers: a PyTorch implementation of the original model that followed an already existing one [2] - with some small differences, though - to prove myself I could build a Transformer from scratch and train it.\
+An exercise to learn about Transformers: a PyTorch implementation of the original model [1] that followed an already existing one [2] - with some small differences, though - to prove myself I could build a Transformer from scratch and train it.\
 After gaining theoretical intuition behind the architecture logic [3], I went through every line of code [2] and the respective libraries' docs, reproducing such steps while customizing, testing and abundantly documenting them.
 
 ### Purpose
