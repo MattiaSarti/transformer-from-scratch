@@ -1,11 +1,11 @@
 # How I Reimplemented the Original Transformer [1] from Scratch
 
 An exercise to learn about Transformers: a PyTorch implementation of the original model that followed an already existing one [2] - with some small differences, though - to prove myself I could build a Transformer from scratch and train it.\
-<br>
 After gaining theoretical intuition behind the architecture logic [3], I went through every line of code [2] and the respective libraries' docs, reproducing such steps while customizing, testing and abundantly documenting them.
 
-## Purpose
-I was interested in the [architecture definition](https://github.com/MattiaSarti/transformer-from-scratch/tree/main/transformer/architecture), but following [2] I also trained the model on a toy source-to-target copy task to ensure its proper functioning. An example of resulting translations follows, reproducible by running ```python try_toy_task.py``` from the root directory of the repository.\
+### Purpose
+I was interested in the [architecture definition](https://github.com/MattiaSarti/transformer-from-scratch/tree/main/transformer/architecture), but following [2] I also [trained](https://github.com/MattiaSarti/transformer-from-scratch/tree/main/transformer/training_and_inference) the model on a toy source-to-target copy task to ensure its proper functioning.\
+An example of resulting translations follows, reproducible by running ```python try_toy_task.py``` from the root directory of the repository.\
 <... CMD screenshot or stdout logs here ...>
 
 ### Tests
@@ -14,9 +14,9 @@ I was interested in the [architecture definition](https://github.com/MattiaSarti
 ✓ Code Coverage: ...%
 
 ### Code Style
-✓ Pylint-compliant\
-✓ Flake8-compliant\
-✓ (deliberately) exaggeratedly commented
+✓ Pylint-compliant (2.5.3)\
+✓ Flake8-compliant (3.8.4)\
+✓ *deliberately* exaggeratedly commented
 
 ### References
 [1] [Attention Is All You Need, 2017, Vaswani et al.](https://arxiv.org/abs/1706.03762)\
