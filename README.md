@@ -4,14 +4,13 @@ An exercise to learn about Transformers: a PyTorch implementation of the origina
 After gaining theoretical intuition behind the architecture logic [[3](https://github.com/MattiaSarti/transformer-from-scratch#references)], I went through every line of code [[2](https://github.com/MattiaSarti/transformer-from-scratch#references)] and the respective libraries' docs, reproducing such steps while customizing, testing and abundantly documenting them.
 
 ## Purpose
-I was interested in the [architecture definition](https://github.com/MattiaSarti/transformer-from-scratch/tree/main/transformer/architecture), but following [[2](https://github.com/MattiaSarti/transformer-from-scratch#references)] I also [trained](https://github.com/MattiaSarti/transformer-from-scratch/tree/main/transformer/training_and_inference) the model on a toy source-to-target copy task to ensure its proper functioning.\
+I was interested in understanding the details of the [architecture implementation](https://github.com/MattiaSarti/transformer-from-scratch/tree/main/transformer/architecture) - to then propose a modification of the position encoding mechanism, as done [here](https://github.com/MattiaSarti/rethinking-position-encoding-in-transformers) - but following [[2](https://github.com/MattiaSarti/transformer-from-scratch#references)] I also [trained](https://github.com/MattiaSarti/transformer-from-scratch/tree/main/transformer/training_and_inference) the model on a toy source-to-target copy task to ensure its proper functioning.\
 An example of resulting translations follows, reproducible by running ```python try_toy_task.py``` from the root directory of the repository.\
-<... CMD screenshot or stdout logs here ...>
+*<...coming soon...>*
 
 ## Tests
 ✓ Unit Tests: passed\
-✓ Integration Tests: passed\
-✓ Code Coverage: ...%
+✓ Code Coverage: *<...coming soon...>* %
 
 ## Code Style
 ✓ Pylint-compliant (2.5.3)\
