@@ -1,5 +1,5 @@
 numpy==1.19.5
-spacy==2.3.2
+# spacy==2.3.2
 
 --find-links https://download.pytorch.org/whl/torch_stable.html
 torch==1.7.1+cu110
