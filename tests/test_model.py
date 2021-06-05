@@ -5,9 +5,10 @@ Utilities for testing the model as a whole.
 
 from unittest import TestCase
 
-from tests.reproducible_tests import ReproducibleTestLayer
+# from tests.reproducible_tests import ReproducibleTestLayer
 
 
+# TODO: test: whole training-prediction, loss, determinism
 class TestModel(TestCase):
     """
     Tests for the whole Transformer model.
@@ -19,4 +20,4 @@ class TestModel(TestCase):
         the model when testing it across the different methods, that can use
         a common instance.
         """
-        pass  #  - ideas (I mean a whole training - prediction): test loss, test determinism
+        pass  # TODO - pylint: disable=unnecessary-pass

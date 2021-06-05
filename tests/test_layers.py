@@ -15,10 +15,12 @@ from torch.nn import Linear, ModuleList, Sequential
 from torch.optim import SGD
 
 from tests.reproducible_tests import ReproducibleTestLayer
-from transformer.architecture.attention import (
-    allowed_positions_to_attend, MultiHeadAttention,
-    scaled_dot_product_attention
-)
+# TODO: test all the following functions for the attention mechanism:
+from transformer.architecture.attention import MultiHeadAttention
+# from transformer.architecture.attention import (
+#     allowed_positions_to_attend, MultiHeadAttention,
+#     scaled_dot_product_attention
+# )
 from transformer.architecture.base import (
     get_clones, LayerNorm, LogSoftmax, PositionWiseFeedForward,
     ResidualConnectionAndLayerNorm
