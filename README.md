@@ -75,7 +75,7 @@ Predicted sequence:
 ## Requirements
 Python 3.8.0 + NVIDIA driver + CUDA 11.2 + Cudnn + pip install -r requirements.txt
 
-## Tests
+## The Model Architecture Is Tested
 ✓ Unit Tests: passed - to reproduce the outcome, run ```python run_tests.py``` in the repository root directory\
 ✓ Code Coverage: *<...coming soon...>* %
 
