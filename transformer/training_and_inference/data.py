@@ -240,7 +240,7 @@ def dataset_builder_copy_task(sequence_length: int, vocabulary_size: int,
 
         # yielding mini-batch made of identical source and target samples
         # (i.e. labels equal samples):
-        yield MiniBatch(
+        yield build_mini_batch(
             src_tokens=samples.detach().clone(),  # graph-detached, deep copy
             tgt_tokens=samples.detach().clone(),  # graph-detached, deep copy
             padding_token=0  # as assumed above

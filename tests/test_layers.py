@@ -61,6 +61,7 @@ def skip_if_no_parameters(function):
 
 
 # pylint: disable=no-member
+
 class OutputShapesAndDTypesLayerTests:  # noqa: E501 pylint: disable=too-few-public-methods
     """
     Tests for shapes and data types of layer outputs.
@@ -109,10 +110,12 @@ class OutputShapesAndDTypesLayerTests:  # noqa: E501 pylint: disable=too-few-pub
             # checking the data type:
             with self.subTest(subtest_name):
                 self.assertEqual(actual_dtype, expected_dtype)
+
 # pylint: enable=no-member
 
 
 # pylint: disable=no-member
+
 class GradientsAndParameterUpdatesLayerTests:  # noqa: E501 pylint: disable=too-few-public-methods
     """
     Tests for layer gradient computations and parameters updates.
@@ -192,6 +195,7 @@ class GradientsAndParameterUpdatesLayerTests:  # noqa: E501 pylint: disable=too-
                             updated_parameter_vector  # updated values
                         )
                     )
+
 # pylint: enable=no-member
 
 

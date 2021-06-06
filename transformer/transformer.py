@@ -60,6 +60,7 @@ class HyperparameterDict(TypedDict):
 
 
 # pylint: disable=no-member
+
 class Transformer:
     """
     Transformer model handler taking care of initialization, training and
@@ -67,6 +68,7 @@ class Transformer:
     """
 
     # pylint: disable=unused-argument
+
     def __init__(  # pylint: disable=too-many-arguments
             self,
             src_vocabulary_dimension: int,
@@ -81,11 +83,11 @@ class Transformer:
     ) -> None:
         # setting the hyperparameters:
         hyperparameters = locals()
-        del hyperparameters['path']
         self._set_hyperparameters(hyperparameters=hyperparameters)
 
         # initializing the new model:
         self._build_model_architecture()
+
     # pylint: enable=unused-argument
 
     def _build_model_architecture(self) -> None:
@@ -212,7 +214,6 @@ class Transformer:
         # moving inputs to such device:
         src_sequences = src_sequences.to(device)
         src_masks = src_masks.to(device)
-        print()
 
         # switching to inference mode:
         self.model.eval()
@@ -510,4 +511,5 @@ class Transformer:
     #         print("Average Loss per Token: {l:.3f}".format(l=loss))
 
     #     print('-' * 60)
+
 # pylint: enable=no-member
